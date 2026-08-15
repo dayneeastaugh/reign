@@ -16,7 +16,7 @@ import orbitJson from '../../../content/tournaments/grand-orbit.json';
 
 export const orbit = orbitJson as unknown as TournamentDef;
 
-export type View = 'quick' | 'orbitHome' | 'orbitPlay';
+export type View = 'quick' | 'orbitHome' | 'orbitPlay' | 'cabinet';
 import {
   kvGet,
   kvSet,
@@ -171,8 +171,14 @@ export class AppState {
 
   currentLevel = $derived(this.sessionMode === 'tournament' ? orbit.levels[this.levelIndex] : null);
 
+  orbitComplete = $derived(this.orbitProgress.completed.length === orbit.levels.length);
+
+  totalStars = $derived(
+    Object.values(this.orbitProgress.stars).reduce((sum, s) => sum + s, 0),
+  );
+
   variant = $derived.by((): PlayfieldVariantDef | null => {
-    if (this.view === 'quick') return null;
+    if (this.view === 'quick' || this.view === 'cabinet') return null;
     const id =
       this.view === 'orbitPlay' && this.currentLevel
         ? (this.currentLevel.variant ?? orbit.theme.defaultVariant)
@@ -241,6 +247,10 @@ export class AppState {
 
   goOrbitHome(): void {
     this.view = 'orbitHome';
+  }
+
+  goCabinet(): void {
+    this.view = 'cabinet';
   }
 
   newGame(d: Difficulty = this.difficulty): void {

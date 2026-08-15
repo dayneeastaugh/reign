@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Board from './Board.svelte';
   import { app, orbit } from './state.svelte';
+  import orreryArt from '../../../content/assets/grand-orbit/orrery.jpg';
 
   let showSettings = $state(false);
 
@@ -40,14 +41,48 @@
   {#if app.view !== 'orbitPlay'}
     <nav class="tabs">
       <button class="tag" class:active={app.view === 'quick'} onclick={() => app.goQuick()}>Quick</button>
-      <button class="tag" class:active={app.view !== 'quick'} onclick={() => app.goOrbitHome()}>
+      <button class="tag" class:active={app.view.startsWith('orbit')} onclick={() => app.goOrbitHome()}>
         {orbit.name}
+      </button>
+      <button class="tag" class:active={app.view === 'cabinet'} onclick={() => app.goCabinet()}>
+        Cabinet
       </button>
     </nav>
   {/if}
 
   {#if !app.ready}
     <p class="hint-line">Setting the press…</p>
+  {:else if app.view === 'cabinet'}
+    <header>
+      <h1>The collector's cabinet</h1>
+      <p class="rule">One keepsake per completed tournament</p>
+    </header>
+
+    <div class="shelf-row">
+      <figure class="keepsake" class:locked={!app.orbitComplete}>
+        <div class="keepsake-frame">
+          <img src={orreryArt} alt={orbit.collectible.name} />
+          {#if !app.orbitComplete}
+            <div class="keepsake-veil">
+              <span class="veil-mark">?</span>
+            </div>
+          {/if}
+        </div>
+        <figcaption>
+          {#if app.orbitComplete}
+            {orbit.name} ★
+          {:else}
+            {orbit.name} · {app.orbitProgress.completed.length} / {orbit.setup.levelCount}
+          {/if}
+        </figcaption>
+      </figure>
+    </div>
+    <div class="shelf-board"></div>
+
+    <div class="plaques">
+      <span class="plaque">★ {app.totalStars} stars</span>
+      <span class="plaque">{app.orbitProgress.completed.length} levels cleared</span>
+    </div>
   {:else if app.view === 'orbitHome'}
     <header>
       <h1>{orbit.name}</h1>
@@ -406,6 +441,87 @@
 
   .board-zone {
     position: relative;
+  }
+
+  .shelf-row {
+    display: flex;
+    gap: 18px;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 0;
+  }
+
+  .keepsake {
+    margin: 0;
+    text-align: center;
+  }
+
+  .keepsake-frame {
+    position: relative;
+    width: min(64vw, 260px);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid #6b5136;
+    box-shadow: 0 6px 18px rgba(63, 58, 51, 0.25);
+  }
+
+  .keepsake-frame img {
+    display: block;
+    width: 100%;
+    transition: filter 400ms ease;
+  }
+
+  .keepsake.locked .keepsake-frame img {
+    filter: grayscale(0.9) brightness(0.55) contrast(0.9);
+  }
+
+  .keepsake-veil {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .veil-mark {
+    font-family: var(--font-serif);
+    font-size: 56px;
+    color: rgba(242, 234, 216, 0.85);
+  }
+
+  figcaption {
+    margin-top: 10px;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  .keepsake.locked figcaption {
+    color: var(--ink-soft);
+  }
+
+  .shelf-board {
+    width: min(84vw, 340px);
+    height: 10px;
+    border-radius: 4px;
+    background: #c9a878;
+    border: 1px solid #8a6a3f;
+    margin-top: -6px;
+  }
+
+  .plaques {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .plaque {
+    font-size: 12px;
+    color: #5a4326;
+    background: #e8d9ba;
+    border: 1px solid #c9b18a;
+    border-radius: 6px;
+    padding: 4px 12px;
   }
 
   .pause-cover {

@@ -44,6 +44,8 @@ export interface LevelDef {
 export interface CollectibleDef {
   name: string;
   partGlyphs: string[];
+  /** Path to the keepsake artwork, relative to the content root. */
+  art?: string;
 }
 
 export interface StarRuleDef {
