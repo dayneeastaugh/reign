@@ -1,4 +1,14 @@
-import { generatePuzzle, EMPTY, X, QUEEN, type Difficulty, type GeneratedPuzzle } from '@reign/engine';
+import {
+  generatePuzzle,
+  nextHint,
+  EMPTY,
+  X,
+  QUEEN,
+  type Difficulty,
+  type GeneratedPuzzle,
+  type Hint,
+  type UnitRef,
+} from '@reign/engine';
 import {
   kvGet,
   kvSet,
@@ -12,6 +22,25 @@ import {
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const UNDO_LIMIT = 200;
 
+const REGION_NAMES = [
+  'rose',
+  'sage',
+  'ochre',
+  'slate',
+  'mauve',
+  'terracotta',
+  'seafoam',
+  'olive',
+  'lilac',
+  'sand',
+  'denim',
+];
+
+export interface ActiveHint {
+  hint: Hint;
+  stage: 1 | 2;
+}
+
 export class AppState {
   ready = $state(false);
   settings = $state<Settings>({ ...DEFAULT_SETTINGS });
@@ -21,6 +50,8 @@ export class AppState {
   elapsed = $state(0);
   paused = $state(false);
   undoDepth = $state(0);
+  hintsUsed = $state(0);
+  activeHint = $state<ActiveHint | null>(null);
 
   private undoStack: number[][] = [];
   private resultRecorded = false;
@@ -91,6 +122,8 @@ export class AppState {
     this.paused = false;
     this.undoStack = [];
     this.undoDepth = 0;
+    this.hintsUsed = 0;
+    this.activeHint = null;
     this.resultRecorded = false;
     this.persistSoon();
   }
@@ -106,6 +139,7 @@ export class AppState {
     if (!prev) return;
     this.marks = prev;
     this.undoDepth = this.undoStack.length;
+    this.activeHint = null;
     this.persistSoon();
   }
 
@@ -115,6 +149,7 @@ export class AppState {
     const next = (this.marks[i] + 1) % 3;
     this.marks[i] = next;
     if (next === QUEEN && this.settings.autoX) this.autoX(i);
+    this.activeHint = null;
     this.afterChange();
   }
 
@@ -122,6 +157,7 @@ export class AppState {
   beginPaint(): void {
     if (!this.game || this.solved || this.paused) return;
     this.pushUndo();
+    this.activeHint = null;
   }
 
   paintX(i: number): void {
@@ -130,6 +166,110 @@ export class AppState {
       this.marks[i] = X;
       this.afterChange();
     }
+  }
+
+  private cellsOfUnit(unit: UnitRef): number[] {
+    const n = this.n;
+    const out: number[] = [];
+    if (unit.type === 'row') for (let c = 0; c < n; c++) out.push(unit.index * n + c);
+    else if (unit.type === 'col') for (let r = 0; r < n; r++) out.push(r * n + unit.index);
+    else {
+      const { regions } = this.game!.puzzle;
+      for (let i = 0; i < n * n; i++) if (regions[i] === unit.index) out.push(i);
+    }
+    return out;
+  }
+
+  private unitName(unit: UnitRef): string {
+    if (unit.type === 'row') return `row ${unit.index + 1}`;
+    if (unit.type === 'col') return `column ${unit.index + 1}`;
+    const g = unit.index;
+    return `the ${REGION_NAMES[g % REGION_NAMES.length]} region`;
+  }
+
+  /** Cells to spotlight for the current hint stage. */
+  hintCells = $derived.by(() => {
+    const active = this.activeHint;
+    if (!active) return new Set<number>();
+    const { hint, stage } = active;
+    if (hint.kind === 'mistake') return new Set([hint.cell]);
+    if (hint.kind !== 'step') return new Set<number>();
+    const step = hint.step;
+    if (stage === 1 && 'unit' in step && step.unit) return new Set(this.cellsOfUnit(step.unit));
+    return new Set(step.kind === 'place' ? [step.cell] : step.cells);
+  });
+
+  hintIsMistake = $derived(this.activeHint?.hint.kind === 'mistake');
+
+  hintText = $derived.by(() => {
+    const active = this.activeHint;
+    if (!active) return '';
+    const { hint, stage } = active;
+    if (hint.kind === 'complete') return 'The board is already solved.';
+    if (hint.kind === 'mistake') {
+      return hint.reason === 'wrong-queen'
+        ? 'This ♛ can’t be right. Tap Hint again to remove it.'
+        : 'A ♛ actually belongs under this ×. Tap Hint again to clear it.';
+    }
+    const step = hint.step;
+    const where = 'unit' in step && step.unit ? this.unitName(step.unit) : 'the marked cells';
+    const apply = ' Tap Hint again to apply.';
+    if (step.kind === 'place') {
+      return stage === 1
+        ? `Look at ${where} — only one cell can hold its ♛.`
+        : `The ♛ of ${where} is forced onto this cell.` + apply;
+    }
+    switch (step.technique) {
+      case 'confinement':
+        return stage === 1
+          ? `Every option for ${where} sits on one line.`
+          : `Because ${where} is pinned to one line, these cells can be crossed off.` + apply;
+      case 'forcing':
+        return stage === 1
+          ? `Wherever the ♛ of ${where} lands, some cells are always attacked.`
+          : `Every placement in ${where} attacks these cells — cross them off.` + apply;
+      default:
+        return stage === 1
+          ? 'One cell here leads to a dead end if you try a ♛ on it.'
+          : 'A ♛ on this cell leads to a dead end — cross it off.' + apply;
+    }
+  });
+
+  requestHint(): void {
+    if (!this.game || this.solved || this.paused) return;
+    const active = this.activeHint;
+    if (!active) {
+      this.hintsUsed++;
+      this.activeHint = { hint: nextHint(this.game, $state.snapshot(this.marks)), stage: 1 };
+      return;
+    }
+    const { hint, stage } = active;
+    if (hint.kind === 'complete') {
+      this.activeHint = null;
+      return;
+    }
+    if (hint.kind === 'mistake') {
+      this.pushUndo();
+      this.marks[hint.cell] = EMPTY;
+      this.activeHint = null;
+      this.afterChange();
+      return;
+    }
+    const step = hint.step;
+    const hasUnitStage = 'unit' in step && step.unit !== undefined;
+    if (stage === 1 && hasUnitStage) {
+      this.activeHint = { hint, stage: 2 };
+      return;
+    }
+    this.pushUndo();
+    if (step.kind === 'place') {
+      this.marks[step.cell] = QUEEN;
+      if (this.settings.autoX) this.autoX(step.cell);
+    } else {
+      for (const c of step.cells) if (this.marks[c] === EMPTY) this.marks[c] = X;
+    }
+    this.activeHint = null;
+    this.afterChange();
   }
 
   private autoX(queenCell: number): void {
@@ -158,6 +298,7 @@ export class AppState {
         puzzleId: this.game.id,
         difficulty: this.game.difficulty,
         seconds: this.elapsed,
+        hintsUsed: this.hintsUsed,
         finishedAt: Date.now(),
       });
       void kvDel('current');

@@ -41,6 +41,9 @@
       <button class="tag slim" onclick={() => app.undo()} disabled={app.undoDepth === 0 || app.paused}>
         Undo
       </button>
+      <button class="tag slim" onclick={() => app.requestHint()} disabled={app.paused || app.solved}>
+        Hint
+      </button>
       <button class="tag slim" class:active={showSettings} onclick={() => (showSettings = !showSettings)}>
         ⚙
       </button>
@@ -70,6 +73,8 @@
         puzzle={app.game.puzzle}
         marks={app.marks}
         conflicts={visibleConflicts}
+        hintCells={app.hintCells}
+        hintDanger={app.hintIsMistake}
         onTap={(i) => app.tap(i)}
         onBeginPaint={() => app.beginPaint()}
         onPaint={(i) => app.paintX(i)}
@@ -87,6 +92,8 @@
         <span class="solved-stamp">Solved · {timeLabel}</span>
         <button class="tag" onclick={() => app.newGame()}>Play again</button>
       </div>
+    {:else if app.activeHint}
+      <p class="hint-line hint-message">{app.hintText}</p>
     {:else}
       <p class="hint-line">Tap once for ×, again for ♛. Drag to mark × across cells.</p>
     {/if}
@@ -183,6 +190,17 @@
     font-size: 13px;
     color: var(--ink-soft);
     margin: 0;
+    max-width: 360px;
+    text-align: center;
+  }
+
+  .hint-message {
+    color: var(--ink);
+    font-size: 14px;
+    border: 1.5px dashed var(--gold);
+    border-radius: 10px;
+    padding: 8px 14px;
+    background: var(--paper-raised);
   }
 
   .solved {

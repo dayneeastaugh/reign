@@ -19,6 +19,7 @@ export interface GameResult {
   puzzleId: string;
   difficulty: Difficulty;
   seconds: number;
+  hintsUsed: number;
   finishedAt: number;
 }
 

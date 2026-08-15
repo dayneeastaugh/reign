@@ -5,6 +5,8 @@
     puzzle,
     marks,
     conflicts,
+    hintCells = new Set<number>(),
+    hintDanger = false,
     onTap,
     onBeginPaint,
     onPaint,
@@ -12,6 +14,8 @@
     puzzle: Puzzle;
     marks: number[];
     conflicts: Set<number>;
+    hintCells?: Set<number>;
+    hintDanger?: boolean;
     onTap: (i: number) => void;
     onBeginPaint: () => void;
     onPaint: (i: number) => void;
@@ -99,6 +103,8 @@
   {#each marks as m, i (i)}
     <button
       class="cell"
+      class:hinted={hintCells.has(i)}
+      class:hinted-danger={hintCells.has(i) && hintDanger}
       data-i={i}
       style={cellStyle(i)}
       onpointerdown={(e) => handlePointerDown(e, i)}
@@ -146,6 +152,25 @@
 
   .queen.conflict {
     color: var(--danger);
+  }
+
+  .cell.hinted {
+    box-shadow: inset 0 0 0 3px var(--gold);
+    animation: glow 1.4s ease-in-out infinite;
+  }
+
+  .cell.hinted-danger {
+    box-shadow: inset 0 0 0 3px var(--danger);
+  }
+
+  @keyframes glow {
+    0%,
+    100% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.08);
+    }
   }
 
   .x {
