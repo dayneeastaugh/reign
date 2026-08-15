@@ -5,3 +5,12 @@ export { countSolutions, firstSolution } from './count';
 export { solveLogically, difficultyForTier, type LogicResult, type SolveOptions } from './logic';
 export { generatePuzzle } from './generate';
 export { nextHint } from './hints';
+export {
+  CONTENT_SCHEMA_VERSION,
+  validateTournament,
+  type PlayfieldVariantDef,
+  type ThemeDef,
+  type LevelDef,
+  type CollectibleDef,
+  type TournamentDef,
+} from './content';

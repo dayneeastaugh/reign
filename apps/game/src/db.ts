@@ -13,6 +13,9 @@ export interface SavedGame {
   marks: number[];
   elapsed: number;
   savedAt: number;
+  mode?: 'quick' | 'tournament';
+  tournamentId?: string;
+  levelIndex?: number;
 }
 
 export interface GameResult {

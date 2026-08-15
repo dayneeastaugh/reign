@@ -7,6 +7,7 @@
     conflicts,
     hintCells = new Set<number>(),
     hintDanger = false,
+    queenGlyph = '♛',
     onTap,
     onBeginPaint,
     onPaint,
@@ -16,6 +17,7 @@
     conflicts: Set<number>;
     hintCells?: Set<number>;
     hintDanger?: boolean;
+    queenGlyph?: string;
     onTap: (i: number) => void;
     onBeginPaint: () => void;
     onPaint: (i: number) => void;
@@ -89,11 +91,11 @@
     const parts = [`background: var(--region-${(g % 11) + 1})`];
     if (r > 0) {
       const thick = regions[i] !== regions[(r - 1) * n + c];
-      parts.push(`border-top: ${thick ? '2.5px solid var(--ink)' : '1px solid var(--ink-faint)'}`);
+      parts.push(`border-top: ${thick ? '2.5px solid var(--board-line)' : '1px solid var(--board-line-soft)'}`);
     }
     if (c > 0) {
       const thick = regions[i] !== regions[r * n + c - 1];
-      parts.push(`border-left: ${thick ? '2.5px solid var(--ink)' : '1px solid var(--ink-faint)'}`);
+      parts.push(`border-left: ${thick ? '2.5px solid var(--board-line)' : '1px solid var(--board-line-soft)'}`);
     }
     return parts.join(';');
   }
@@ -127,7 +129,7 @@
       aria-label={cellLabel(i)}
     >
       {#if m === QUEEN}
-        <span class="queen" class:conflict={conflicts.has(i)}>♛</span>
+        <span class="queen" class:conflict={conflicts.has(i)}>{queenGlyph}</span>
       {:else if m === X}
         <span class="x">×</span>
       {/if}
@@ -138,7 +140,7 @@
 <style>
   .board {
     display: grid;
-    border: 3px solid var(--ink);
+    border: 3px solid var(--board-line);
     border-radius: 10px;
     overflow: hidden;
     touch-action: none;
@@ -157,7 +159,7 @@
 
   .queen {
     font-size: clamp(16px, 4.6vw, 26px);
-    color: var(--ink);
+    color: var(--queen-color);
     line-height: 1;
     animation: stamp 160ms cubic-bezier(0.2, 1.4, 0.4, 1);
     pointer-events: none;
@@ -188,7 +190,7 @@
 
   .x {
     font-size: clamp(12px, 3.2vw, 17px);
-    color: var(--ink-soft);
+    color: var(--x-color);
     line-height: 1;
     pointer-events: none;
   }

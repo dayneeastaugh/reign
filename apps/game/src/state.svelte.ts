@@ -7,8 +7,15 @@ import {
   type Difficulty,
   type GeneratedPuzzle,
   type Hint,
+  type PlayfieldVariantDef,
+  type TournamentDef,
   type UnitRef,
 } from '@reign/engine';
+import orbitJson from '../../../content/tournaments/grand-orbit.json';
+
+export const orbit = orbitJson as unknown as TournamentDef;
+
+export type View = 'quick' | 'orbitHome' | 'orbitPlay';
 import {
   kvGet,
   kvSet,
@@ -52,6 +59,10 @@ export class AppState {
   undoDepth = $state(0);
   hintsUsed = $state(0);
   activeHint = $state<ActiveHint | null>(null);
+  view = $state<View>('quick');
+  sessionMode = $state<'quick' | 'tournament'>('quick');
+  levelIndex = $state(0);
+  orbitProgress = $state<{ completed: number[] }>({ completed: [] });
 
   private undoStack: number[][] = [];
   private resultRecorded = false;
@@ -95,14 +106,29 @@ export class AppState {
   );
 
   async init(): Promise<void> {
-    const [settings, saved] = await Promise.all([
+    const [settings, saved, progress] = await Promise.all([
       kvGet<Settings>('settings'),
       kvGet<SavedGame>('current'),
+      kvGet<{ completed: number[] }>(`tournament:${orbit.id}`),
     ]);
     if (settings) this.settings = { ...DEFAULT_SETTINGS, ...settings };
+    if (progress) this.orbitProgress = progress;
     const resumable =
       saved && saved.marks.filter((m) => m === QUEEN).length < saved.game.puzzle.size;
-    if (resumable) {
+    if (
+      resumable &&
+      saved.mode === 'tournament' &&
+      saved.tournamentId === orbit.id &&
+      saved.levelIndex !== undefined &&
+      saved.levelIndex < orbit.levels.length
+    ) {
+      this.sessionMode = 'tournament';
+      this.levelIndex = saved.levelIndex;
+      this.game = saved.game;
+      this.marks = saved.marks;
+      this.elapsed = saved.elapsed;
+      this.view = 'orbitPlay';
+    } else if (resumable) {
       this.game = saved.game;
       this.marks = saved.marks;
       this.elapsed = saved.elapsed;
@@ -114,7 +140,84 @@ export class AppState {
     setInterval(() => this.tick(), 1000);
   }
 
+  /** First level not yet completed — the frontier of the journey. */
+  currentOrbitIndex = $derived.by(() => {
+    const done = new Set(this.orbitProgress.completed);
+    for (let i = 0; i < orbit.levels.length; i++) if (!done.has(i)) return i;
+    return orbit.levels.length - 1;
+  });
+
+  partsEarned = $derived(
+    new Set(
+      this.orbitProgress.completed
+        .map((i) => orbit.levels[i]?.partIndex)
+        .filter((p): p is number => p !== undefined),
+    ),
+  );
+
+  currentLevel = $derived(this.sessionMode === 'tournament' ? orbit.levels[this.levelIndex] : null);
+
+  variant = $derived.by((): PlayfieldVariantDef | null => {
+    if (this.view === 'quick') return null;
+    const id =
+      this.view === 'orbitPlay' && this.currentLevel
+        ? (this.currentLevel.variant ?? orbit.theme.defaultVariant)
+        : orbit.theme.defaultVariant;
+    return orbit.theme.variants.find((v) => v.id === id) ?? null;
+  });
+
+  startOrbitLevel(idx: number): void {
+    const level = orbit.levels[idx];
+    if (!level) return;
+    const unlocked = idx <= this.currentOrbitIndex || this.orbitProgress.completed.includes(idx);
+    if (!unlocked) return;
+    this.sessionMode = 'tournament';
+    this.levelIndex = idx;
+    this.game = {
+      puzzle: { size: level.size, regions: level.regions },
+      solution: level.solution,
+      difficulty: level.difficulty,
+      seed: level.seed ?? 0,
+      id: `${orbit.id}-${idx}`,
+    };
+    this.marks = new Array(level.size * level.size).fill(EMPTY);
+    this.elapsed = 0;
+    this.paused = false;
+    this.undoStack = [];
+    this.undoDepth = 0;
+    this.hintsUsed = 0;
+    this.activeHint = null;
+    this.resultRecorded = false;
+    this.view = 'orbitPlay';
+    this.persistSoon();
+  }
+
+  private completeOrbitLevel(): void {
+    if (!this.orbitProgress.completed.includes(this.levelIndex)) {
+      this.orbitProgress.completed.push(this.levelIndex);
+      void kvSet(`tournament:${orbit.id}`, $state.snapshot(this.orbitProgress));
+    }
+  }
+
+  nextOrbitLevel(): void {
+    if (this.levelIndex + 1 < orbit.levels.length) this.startOrbitLevel(this.levelIndex + 1);
+    else this.view = 'orbitHome';
+  }
+
+  goQuick(): void {
+    if (this.sessionMode !== 'quick') {
+      this.sessionMode = 'quick';
+      this.newGame(this.difficulty);
+    }
+    this.view = 'quick';
+  }
+
+  goOrbitHome(): void {
+    this.view = 'orbitHome';
+  }
+
   newGame(d: Difficulty = this.difficulty): void {
+    this.sessionMode = 'quick';
     this.difficulty = d;
     this.game = generatePuzzle({ difficulty: d, seed: randomSeed() });
     this.marks = new Array(this.game.puzzle.size ** 2).fill(EMPTY);
@@ -301,6 +404,7 @@ export class AppState {
         hintsUsed: this.hintsUsed,
         finishedAt: Date.now(),
       });
+      if (this.sessionMode === 'tournament') this.completeOrbitLevel();
       void kvDel('current');
     }
   }
@@ -331,6 +435,10 @@ export class AppState {
         marks: $state.snapshot(this.marks),
         elapsed: this.elapsed,
         savedAt: Date.now(),
+        mode: this.sessionMode,
+        ...(this.sessionMode === 'tournament'
+          ? { tournamentId: orbit.id, levelIndex: this.levelIndex }
+          : {}),
       };
       void kvSet('current', save);
     }, 300);

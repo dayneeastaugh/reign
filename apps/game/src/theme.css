@@ -21,6 +21,12 @@
   --region-10: #e2cfa8;
   --region-11: #6f8fae;
 
+  /* Playfield tokens — overridden per tournament variant via inline vars. */
+  --board-line: #3f3a33;
+  --board-line-soft: rgba(63, 58, 51, 0.22);
+  --queen-color: #3f3a33;
+  --x-color: #6e675c;
+
   --font-serif: 'Iowan Old Style', 'Palatino', 'Georgia', serif;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
 }

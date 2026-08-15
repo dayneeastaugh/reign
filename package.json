@@ -7,9 +7,12 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "content:build": "tsx content/generate-grand-orbit.ts",
+    "content:validate": "tsx content/validate.ts"
   },
   "devDependencies": {
+    "tsx": "^4.23.12",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }
