@@ -23,6 +23,21 @@
 
   const n = $derived(puzzle.size);
 
+  const FRAME = 6;
+  let viewportW = $state(typeof window === 'undefined' ? 480 : window.innerWidth);
+
+  $effect(() => {
+    const onResize = () => (viewportW = window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  });
+
+  /** Integer cell size in CSS px — fractional 1fr tracks smear a duplicated
+      sliver at the frame edge on some devicePixelRatios. */
+  const cellPx = $derived(
+    Math.max(24, Math.floor((Math.min(viewportW * 0.92, 480) - FRAME) / n)),
+  );
+
   let pointerDownCell = -1;
   let stroking = false;
   let suppressClick = false;
@@ -93,7 +108,7 @@
 
 <div
   class="board"
-  style="grid-template-columns: repeat({n}, 1fr);"
+  style="grid-template-columns: repeat({n}, {cellPx}px); grid-auto-rows: {cellPx}px; width: {n * cellPx + FRAME}px;"
   role="grid"
   aria-label="Puzzle board"
   onpointermove={handlePointerMove}
@@ -123,7 +138,6 @@
 <style>
   .board {
     display: grid;
-    width: min(92vw, 480px);
     border: 3px solid var(--ink);
     border-radius: 10px;
     overflow: hidden;
@@ -131,7 +145,6 @@
   }
 
   .cell {
-    aspect-ratio: 1;
     border: 0;
     padding: 0;
     margin: 0;
