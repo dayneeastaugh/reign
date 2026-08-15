@@ -20,11 +20,30 @@ export interface PlayfieldVariantDef {
   chromeSoft: string;
 }
 
+/** Decoration for the journey map. The layout is generated; the theme paints it. */
+export interface MapThemeDef {
+  /** Vertical gradient stops, top (far) to bottom (home). */
+  sky: string[];
+  /** Ambient cloud washes; rgba strings. */
+  nebulas: string[];
+  starColors: string[];
+  pathBehind: string;
+  pathAhead: string;
+  /** Colour triples (light, mid, dark) cycled across ordinary nodes. */
+  bodyPalettes: string[][];
+  lockedPalette: string[];
+  currentPalette: string[];
+  /** The origin body at the foot of the map. */
+  homePalette: string[];
+  finalGlyph: string;
+}
+
 export interface ThemeDef {
   id: string;
   name: string;
   defaultVariant: string;
   variants: PlayfieldVariantDef[];
+  map?: MapThemeDef;
 }
 
 export interface LevelDef {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Board from './Board.svelte';
+  import QuestMap from './QuestMap.svelte';
   import { app, orbit } from './state.svelte';
   import orreryArt from '../../../content/assets/grand-orbit/orrery.jpg';
 
@@ -75,7 +76,7 @@
     </button>
   </header>
 
-  <main>
+  <main class:flush={app.view === 'orbitHome'}>
     {#if !app.ready}
       <p class="hint-line">Setting the press…</p>
     {:else if app.view === 'settings'}
@@ -150,51 +151,36 @@
         <span class="plaque">{orbitDone} levels cleared</span>
       </div>
     {:else if app.view === 'orbitHome'}
-      <header class="screen-head">
-        <h2 class="display">{orbit.name}</h2>
-        <p class="rule">{orbit.goal} · {orbitDone} / {orbit.setup.levelCount}</p>
-      </header>
-
-      <div class="parts">
-        {#each orbit.collectible.partGlyphs as glyph, p (p)}
-          <span class="part" class:earned={app.partsEarned.has(p)}>{glyph}</span>
-        {/each}
+      <div class="quest-hud">
+        <p class="goal">{orbit.goal} · {orbitDone} / {orbit.setup.levelCount}</p>
+        <div class="parts">
+          {#each orbit.collectible.partGlyphs as glyph, p (p)}
+            <span class="part" class:earned={app.partsEarned.has(p)}>{glyph}</span>
+          {/each}
+        </div>
       </div>
 
-      {#if orbitDone < orbit.setup.levelCount}
-        <button class="tag primary" onclick={() => app.startOrbitLevel(app.currentOrbitIndex)}>
-          {orbitDone === 0 ? 'Launch' : 'Continue'} · Level {app.currentOrbitIndex + 1}
-        </button>
-      {:else}
-        <p class="rule">Journey complete — the orrery is built. ✶</p>
+      {#if orbit.theme.map}
+        <QuestMap
+          levels={orbit.levels}
+          map={orbit.theme.map}
+          partGlyphs={orbit.collectible.partGlyphs}
+          {doneSet}
+          currentIndex={app.currentOrbitIndex}
+          starsFor={(i) => app.starsFor(i)}
+          onSelect={(i) => app.startOrbitLevel(i)}
+        />
       {/if}
 
-      <div class="rail">
-        {#each orbit.levels as level, i (i)}
-          {@const done = doneSet.has(i)}
-          {@const current = i === app.currentOrbitIndex && !done}
-          {@const locked = i > app.currentOrbitIndex && !done}
-          {@const stars = app.starsFor(i)}
-          <div class="node-wrap">
-            <button
-              class="node"
-              class:done
-              class:current
-              class:station={level.special}
-              disabled={locked}
-              onclick={() => app.startOrbitLevel(i)}
-              aria-label={`Level ${i + 1}: ${level.name}${done ? `, completed, ${stars} of 3 stars` : locked ? ', locked' : ''}`}
-            >
-              {level.special && done ? orbit.collectible.partGlyphs[level.partIndex ?? 0] : i + 1}
-            </button>
-            {#if orbit.setup.stars}
-              <span class="stars" class:dim={locked} aria-hidden="true">
-                {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
-              </span>
-            {/if}
-          </div>
-        {/each}
-      </div>
+      {#if orbitDone < orbit.setup.levelCount}
+        <div class="dock">
+          <button class="tag primary" onclick={() => app.startOrbitLevel(app.currentOrbitIndex)}>
+            {orbitDone === 0 ? 'Launch' : 'Continue'} · Level {app.currentOrbitIndex + 1}
+          </button>
+        </div>
+      {:else}
+        <div class="dock"><span class="tag primary">The orrery is complete ✶</span></div>
+      {/if}
     {:else}
       {#if app.view === 'orbitPlay' && app.currentLevel}
         <header class="level-head">
@@ -207,11 +193,6 @@
           </div>
         </header>
       {:else}
-        <header class="screen-head">
-          <h2 class="display">Reign</h2>
-          <p class="rule italic">Every kingdom needs its queen.</p>
-        </header>
-
         <div class="controls">
           {#each ['easy', 'medium', 'hard'] as const as d (d)}
             <button class="tag" class:active={app.difficulty === d} onclick={() => app.newGame(d)}>
@@ -324,10 +305,12 @@
 </div>
 
 <style>
+  /* App shell: fixed viewport height so inner regions scroll, not the page. */
   .app {
-    min-height: 100dvh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     transition: background 300ms ease;
   }
 
@@ -384,25 +367,43 @@
 
   main {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 14px;
     padding: 16px 16px 24px;
     width: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
 
-  .screen-head {
-    text-align: center;
+  main.flush {
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
   }
 
-  .display {
-    font-family: var(--font-serif);
-    font-weight: 700;
-    font-size: 34px;
-    letter-spacing: 0.01em;
+  .quest-hud {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px 12px;
+  }
+
+  .goal {
     margin: 0;
-    color: var(--ink);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+
+  .dock {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 10px 16px 12px;
   }
 
   h2 {

@@ -152,7 +152,31 @@ const tournament: TournamentDef = {
     partGlyphs: ['⚙', '◉', '◠', '✶', '✧'],
     art: 'assets/grand-orbit/orrery.jpg',
   },
-  theme: { id: 'orbit', name: 'Space', defaultVariant: 'dusk', variants: VARIANTS },
+  theme: {
+    id: 'orbit',
+    name: 'Space',
+    defaultVariant: 'dusk',
+    variants: VARIANTS,
+    map: {
+      sky: ['#0b0620', '#0e1128', '#141b30', '#1c2444', '#2a3560'],
+      nebulas: ['rgba(140,110,195,0.20)', 'rgba(90,140,160,0.16)', 'rgba(200,120,150,0.13)'],
+      starColors: ['#cdd6ef', '#e8d9b0', '#aab8e8'],
+      pathBehind: '#e3c27c',
+      pathAhead: '#8f9ac8',
+      bodyPalettes: [
+        ['#f6dfa8', '#e0b568', '#8a6a2f'],
+        ['#f2b49b', '#dd8a68', '#93472c'],
+        ['#a8d2c2', '#79a898', '#3e6a5c'],
+        ['#e8b7c2', '#d18a9d', '#8f4a60'],
+        ['#b8cfe8', '#88a8cc', '#3e5a80'],
+        ['#d8c9a0', '#b0a068', '#6a5c30'],
+      ],
+      lockedPalette: ['#262f52', '#1d2542', '#141b30'],
+      currentPalette: ['#fdf6ec', '#ecd9b4', '#b9955c'],
+      homePalette: ['#f6e8cc', '#ddba8a', '#a87e4d'],
+      finalGlyph: '★',
+    },
+  },
   levels,
 };
 

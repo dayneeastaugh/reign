@@ -10,6 +10,7 @@ export {
   validateTournament,
   scoreStars,
   type StarRuleDef,
+  type MapThemeDef,
   type PlayfieldVariantDef,
   type ThemeDef,
   type LevelDef,
