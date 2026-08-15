@@ -1,0 +1,62 @@
+/* Letterpress — the Reign base theme tokens. */
+:root {
+  --paper: #f6f1e7;
+  --paper-raised: #fdfaf3;
+  --ink: #3f3a33;
+  --ink-soft: #6e675c;
+  --ink-faint: rgba(63, 58, 51, 0.22);
+  --danger: #a8402f;
+  --gold: #a8813f;
+
+  /* Region palette: muted, warm, mutually distinguishable. Cycled by region id. */
+  --region-1: #d8a79a;
+  --region-2: #a9b494;
+  --region-3: #d9b97e;
+  --region-4: #9db0c4;
+  --region-5: #b39ab0;
+  --region-6: #cd8f6e;
+  --region-7: #93b8a5;
+  --region-8: #b3b072;
+  --region-9: #a08cbf;
+  --region-10: #e2cfa8;
+  --region-11: #6f8fae;
+
+  --font-serif: 'Iowan Old Style', 'Palatino', 'Georgia', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tag {
+  border: 1.5px dashed var(--ink);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  padding: 7px 16px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 80ms ease;
+}
+
+.tag:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.tag.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-style: solid;
+}
