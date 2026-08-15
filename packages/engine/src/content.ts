@@ -36,6 +36,10 @@ export interface MapThemeDef {
   /** The origin body at the foot of the map. */
   homePalette: string[];
   finalGlyph: string;
+  /** Deep-field decoration. */
+  galaxyColor?: string;
+  constellationColor?: string;
+  asteroidColor?: string;
 }
 
 export interface ThemeDef {
