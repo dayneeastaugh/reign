@@ -16,12 +16,15 @@ import orbitJson from '../../../content/tournaments/grand-orbit.json';
 
 export const orbit = orbitJson as unknown as TournamentDef;
 
-export type View = 'quick' | 'orbitHome' | 'orbitPlay' | 'cabinet';
+export type View = 'quick' | 'orbitHome' | 'orbitPlay' | 'cabinet' | 'settings';
 import {
   kvGet,
   kvSet,
   kvDel,
   addResult,
+  exportBackup,
+  importBackup,
+  resetAll,
   DEFAULT_SETTINGS,
   type SavedGame,
   type Settings,
@@ -178,7 +181,7 @@ export class AppState {
   );
 
   variant = $derived.by((): PlayfieldVariantDef | null => {
-    if (this.view === 'quick' || this.view === 'cabinet') return null;
+    if (this.view === 'quick' || this.view === 'cabinet' || this.view === 'settings') return null;
     const id =
       this.view === 'orbitPlay' && this.currentLevel
         ? (this.currentLevel.variant ?? orbit.theme.defaultVariant)
@@ -251,6 +254,31 @@ export class AppState {
 
   goCabinet(): void {
     this.view = 'cabinet';
+  }
+
+  goSettings(): void {
+    this.view = 'settings';
+  }
+
+  /** Downloads progress as a JSON file; on iOS this opens the share sheet. */
+  async downloadBackup(): Promise<void> {
+    const json = await exportBackup();
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reign-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async restoreBackup(file: File): Promise<void> {
+    await importBackup(await file.text());
+    location.reload();
+  }
+
+  async resetEverything(): Promise<void> {
+    await resetAll();
+    location.reload();
   }
 
   newGame(d: Difficulty = this.difficulty): void {

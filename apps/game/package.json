@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/libre-caslon-text": "^5.3.0",
+    "@fontsource/source-sans-3": "^5.3.0",
     "@reign/engine": "0.1.0",
     "idb": "^8.0.3"
   },

@@ -1,0 +1,145 @@
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&amp;family=Source+Sans+3:wght@400;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;overflow-x:hidden;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-primary-fixed-variant":"#4b463f","on-tertiary-fixed":"#1b1b20","surface-container-high":"#ede8de","on-secondary-fixed":"#251a00","outline-variant":"#cec5bc","on-surface":"#1d1c16","error":"#ba1a1a","on-secondary":"#ffffff","on-error-container":"#93000a","surface-container-highest":"#e7e2d8","on-tertiary-container":"#a5a4aa","on-tertiary":"#ffffff","outline":"#7d766e","on-primary-container":"#aba49a","error-container":"#ffdad6","inverse-primary":"#cec5bb","surface-container-low":"#f8f3e9","primary-fixed-dim":"#cec5bb","on-primary":"#ffffff","inverse-on-surface":"#f5f0e6","surface-bright":"#fef9ef","secondary-container":"#fedc93","surface-tint":"#635d56","on-secondary-container":"#785f23","on-secondary-fixed-variant":"#5a4308","primary-fixed":"#eae1d7","on-background":"#1d1c16","primary":"#29251e","on-primary-fixed":"#1f1b15","on-error":"#ffffff","tertiary-fixed":"#e4e1e8","on-tertiary-fixed-variant":"#46464b","on-surface-variant":"#4b463f","primary-container":"#3f3a33","tertiary-container":"#3a3a3f","surface":"#fef9ef","background":"#fef9ef","inverse-surface":"#32302a","tertiary-fixed-dim":"#c7c5cc","surface-container":"#f2ede3","secondary":"#745b1f","secondary-fixed":"#ffdf9c","tertiary":"#242529","surface-dim":"#dedad0","secondary-fixed-dim":"#e4c27c","surface-variant":"#e7e2d8","surface-container-lowest":"#ffffff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"unit":"4px","margin-edge":"20px","gutter":"12px","board-padding":"8px"},"fontFamily":{"headline-md":["Libre Caslon Text"],"body-sm":["Source Sans 3"],"display-lg-mobile":["Libre Caslon Text"],"body-lg":["Source Sans 3"],"display-lg":["Libre Caslon Text"],"label-caps":["Source Sans 3"]},"fontSize":{"headline-md":["24px",{"lineHeight":"32px","fontWeight":"600"}],"body-sm":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-lg-mobile":["32px",{"lineHeight":"36px","fontWeight":"700"}],"body-lg":["18px",{"lineHeight":"26px","fontWeight":"400"}],"display-lg":["42px",{"lineHeight":"48px","fontWeight":"700"}],"label-caps":["12px",{"lineHeight":"16px","letterSpacing":"0.05em","fontWeight":"700"}]}}}}</script></head><body class="bg-surface font-body-lg text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-4 flex items-center gap-2"><button class="w-11 h-11 flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" onclick="history.back()"><span class="material-symbols-outlined">arrow_back_ios_new</span></button><div class="flex items-center gap-3"><img alt="Reign Crown Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADL6t7kHE51UnlbXflQnAwiSut-dKx4IdGxhODojGiZNnBJ10tLSpzSEhKzu8l7cNWKiEbx9vTMRRT9Lp-Nwu53X9SFsIi49PZuEkob8pFf8_gc7uVJJivAwOlbDlmTXX2rrhuqxJEFdnILNXOUqd2ph68mjFJ-04e5rG-Zt_aUEHvUeVW5_sO7qdGg-Kgogkol5bes1q6mxcaX5q6Wuc14By9tskQNB5anUktxbnsKSOifkFbHjBDbA"/><h1 class="font-headline-md text-headline-md tracking-tight text-primary">Game Settings</h1></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 bg-surface"><div class="flex flex-col w-full h-full relative font-body-lg text-on-surface p-4">
+<div class="flex-1 flex flex-col gap-8 max-w-md mx-auto w-full pt-8 pb-12">
+<!-- Settings Group -->
+<div class="flex flex-col gap-6">
+<h2 class="font-headline-md text-headline-md text-primary tracking-tight">Preferences</h2>
+<div class="flex flex-col gap-4">
+<!-- Toggle: Auto-X -->
+<div class="flex items-center justify-between group cursor-pointer" onclick="toggleSetting('auto-x', this)">
+<div class="flex flex-col">
+<span class="text-body-lg text-primary font-medium">Auto-Mark</span>
+<span class="text-body-sm text-on-surface-variant">Automatically place marks in completed regions</span>
+</div>
+<div class="relative w-14 h-8 bg-surface-variant rounded-full p-1 transition-colors duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]" data-state="on" id="toggle-auto-x">
+<div class="w-6 h-6 bg-on-primary rounded-full shadow-sm transform translate-x-6 transition-transform duration-300 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'wght' 600;">close</span>
+</div>
+</div>
+</div>
+<!-- Toggle: Show Clashes -->
+<div class="flex items-center justify-between group cursor-pointer" onclick="toggleSetting('clashes', this)">
+<div class="flex flex-col">
+<span class="text-body-lg text-primary font-medium">Highlight Clashes</span>
+<span class="text-body-sm text-on-surface-variant">Show red error marks for invalid placements</span>
+</div>
+<div class="relative w-14 h-8 bg-surface-variant rounded-full p-1 transition-colors duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]" data-state="on" id="toggle-clashes">
+<div class="w-6 h-6 bg-on-primary rounded-full shadow-sm transform translate-x-6 transition-transform duration-300 flex items-center justify-center"></div>
+</div>
+</div>
+<!-- Toggle: Sound -->
+<div class="flex items-center justify-between group cursor-pointer" onclick="toggleSetting('sound', this)">
+<div class="flex flex-col">
+<span class="text-body-lg text-primary font-medium">Sound Effects</span>
+<span class="text-body-sm text-on-surface-variant">Haptic feedback and placement sounds</span>
+</div>
+<div class="relative w-14 h-8 bg-surface-variant rounded-full p-1 transition-colors duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]" data-state="off" id="toggle-sound">
+<div class="w-6 h-6 bg-on-primary rounded-full shadow-sm transform translate-x-0 transition-transform duration-300 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">volume_off</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Data Management -->
+<div class="flex flex-col gap-6 mt-8">
+<h2 class="font-headline-md text-headline-md text-primary tracking-tight">Data Management</h2>
+<div class="flex flex-wrap gap-4">
+<!-- Export Button (Tag Style) -->
+<button class="relative px-6 py-3 rounded-full bg-surface text-primary font-label-caps uppercase tracking-wider flex items-center gap-2 shadow-[0_4px_10px_rgba(63,58,51,0.1)] active:shadow-none active:scale-95 transition-all duration-200 overflow-hidden" onclick="triggerEffect(this)">
+<div class="absolute inset-0 rounded-full border-[1.5px] border-dashed border-outline/30 pointer-events-none m-[2px]"></div>
+<span class="material-symbols-outlined text-[18px]">download</span>
+          Export Backup
+        </button>
+<!-- Import Button (Tag Style) -->
+<button class="relative px-6 py-3 rounded-full bg-surface text-primary font-label-caps uppercase tracking-wider flex items-center gap-2 shadow-[0_4px_10px_rgba(63,58,51,0.1)] active:shadow-none active:scale-95 transition-all duration-200 overflow-hidden" onclick="triggerEffect(this)">
+<div class="absolute inset-0 rounded-full border-[1.5px] border-dashed border-outline/30 pointer-events-none m-[2px]"></div>
+<span class="material-symbols-outlined text-[18px]">upload</span>
+          Import Backup
+        </button>
+</div>
+</div>
+<!-- Danger Zone -->
+<div class="flex flex-col gap-6 mt-8">
+<button class="w-full relative px-6 py-4 rounded-xl bg-error-container text-on-error-container font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform duration-200 shadow-sm" onclick="triggerEffect(this)">
+<span class="material-symbols-outlined">delete_forever</span>
+        Reset All Progress
+      </button>
+</div>
+</div>
+<!-- Footer -->
+<div class="flex-shrink-0 py-8 flex flex-col items-center justify-center gap-2 text-on-surface-variant opacity-60">
+<div class="w-12 h-[1px] bg-outline-variant mb-2"></div>
+<span class="font-label-caps tracking-[0.1em]">Reign Crown • v1.0.4</span>
+<span class="text-[10px] uppercase tracking-widest font-body-sm">Press &amp; Ink Studios</span>
+</div>
+</div>
+<script>
+  // Initialize toggle visuals based on initial state
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggles = document.querySelectorAll('[id^="toggle-"]');
+    toggles.forEach(toggle => {
+      const state = toggle.getAttribute('data-state');
+      updateToggleVisual(toggle, state === 'on');
+    });
+  });
+
+  function toggleSetting(id, element) {
+    const toggle = element.querySelector('[id^="toggle-"]');
+    const currentState = toggle.getAttribute('data-state') === 'on';
+    const newState = !currentState;
+    
+    toggle.setAttribute('data-state', newState ? 'on' : 'off');
+    updateToggleVisual(toggle, newState);
+    
+    // Haptic feedback simulation
+    if (navigator.vibrate) navigator.vibrate(10);
+  }
+
+  function updateToggleVisual(toggle, isOn) {
+    const knob = toggle.querySelector('div');
+    const icon = knob.querySelector('span');
+    
+    if (isOn) {
+      toggle.classList.remove('bg-surface-variant');
+      toggle.classList.add('bg-primary');
+      knob.classList.remove('translate-x-0');
+      knob.classList.add('translate-x-6');
+      
+      if (icon) {
+        if (toggle.id === 'toggle-auto-x') {
+          icon.textContent = 'close';
+          icon.classList.replace('text-on-surface-variant', 'text-primary');
+        } else if (toggle.id === 'toggle-sound') {
+          icon.textContent = 'volume_up';
+          icon.classList.replace('text-on-surface-variant', 'text-primary');
+        }
+      }
+    } else {
+      toggle.classList.remove('bg-primary');
+      toggle.classList.add('bg-surface-variant');
+      knob.classList.remove('translate-x-6');
+      knob.classList.add('translate-x-0');
+      
+      if (icon) {
+        if (toggle.id === 'toggle-auto-x') {
+          icon.textContent = '';
+        } else if (toggle.id === 'toggle-sound') {
+          icon.textContent = 'volume_off';
+          icon.classList.replace('text-primary', 'text-on-surface-variant');
+        }
+      }
+    }
+  }
+
+  function triggerEffect(button) {
+    // Haptic feedback simulation
+    if (navigator.vibrate) navigator.vibrate([15, 30, 15]);
+    
+    // Add temporary visual feedback class
+    button.classList.add('opacity-70');
+    setTimeout(() => {
+      button.classList.remove('opacity-70');
+    }, 150);
+  }
+</script></main></body></html>

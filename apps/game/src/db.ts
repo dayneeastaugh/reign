@@ -4,9 +4,10 @@ import type { Difficulty, GeneratedPuzzle } from '@reign/engine';
 export interface Settings {
   autoX: boolean;
   showConflicts: boolean;
+  sound: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoX: false, showConflicts: true };
+export const DEFAULT_SETTINGS: Settings = { autoX: false, showConflicts: true, sound: false };
 
 export interface SavedGame {
   game: GeneratedPuzzle;
@@ -75,4 +76,58 @@ export async function addResult(result: GameResult): Promise<void> {
 
 export async function allResults(): Promise<GameResult[]> {
   return (await db()).getAll('results');
+}
+
+interface Backup {
+  app: 'reign';
+  schema: number;
+  exportedAt: number;
+  settings?: Settings;
+  current?: SavedGame;
+  tournaments?: Record<string, unknown>;
+  results?: GameResult[];
+}
+
+export async function exportBackup(): Promise<string> {
+  const [settings, current, orbitProgress, results] = await Promise.all([
+    kvGet<Settings>('settings'),
+    kvGet<SavedGame>('current'),
+    kvGet('tournament:grand-orbit'),
+    allResults(),
+  ]);
+  const backup: Backup = {
+    app: 'reign',
+    schema: DB_VERSION,
+    exportedAt: Date.now(),
+    settings,
+    current,
+    tournaments: { 'grand-orbit': orbitProgress },
+    results,
+  };
+  return JSON.stringify(backup);
+}
+
+export async function importBackup(json: string): Promise<void> {
+  const data = JSON.parse(json) as Backup;
+  if (data.app !== 'reign' || typeof data.schema !== 'number') {
+    throw new Error('Not a Reign backup file');
+  }
+  if (data.settings) await kvSet('settings', data.settings);
+  if (data.current) await kvSet('current', data.current);
+  else await kvDel('current');
+  const progress = data.tournaments?.['grand-orbit'];
+  if (progress) await kvSet('tournament:grand-orbit', progress);
+  if (Array.isArray(data.results)) {
+    const d = await db();
+    const tx = d.transaction('results', 'readwrite');
+    await tx.objectStore('results').clear();
+    for (const r of data.results) void tx.objectStore('results').add(r);
+    await tx.done;
+  }
+}
+
+export async function resetAll(): Promise<void> {
+  const d = await db();
+  await d.clear('kv');
+  await d.clear('results');
 }

@@ -4,7 +4,8 @@
   import { app, orbit } from './state.svelte';
   import orreryArt from '../../../content/assets/grand-orbit/orrery.jpg';
 
-  let showSettings = $state(false);
+  let fileInput: HTMLInputElement;
+  let confirmReset = $state(false);
 
   onMount(() => {
     void app.init();
@@ -33,250 +34,381 @@
     );
   });
 
+  const barTitle = $derived.by(() => {
+    switch (app.view) {
+      case 'quick':
+        return 'Quick play';
+      case 'orbitHome':
+        return orbit.name;
+      case 'orbitPlay':
+        return `Level ${app.levelIndex + 1}`;
+      case 'cabinet':
+        return 'Cabinet';
+      default:
+        return 'Settings';
+    }
+  });
+
   const doneSet = $derived(new Set(app.orbitProgress.completed));
   const orbitDone = $derived(app.orbitProgress.completed.length);
+
+  async function onPickFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) await app.restoreBackup(file);
+  }
 </script>
 
-<main style={variantStyle}>
-  {#if app.view !== 'orbitPlay'}
-    <nav class="tabs">
-      <button class="tag" class:active={app.view === 'quick'} onclick={() => app.goQuick()}>Quick</button>
-      <button class="tag" class:active={app.view.startsWith('orbit')} onclick={() => app.goOrbitHome()}>
-        {orbit.name}
-      </button>
-      <button class="tag" class:active={app.view === 'cabinet'} onclick={() => app.goCabinet()}>
-        Cabinet
-      </button>
-    </nav>
-  {/if}
+<div class="app" style={variantStyle}>
+  <header class="appbar">
+    <span class="mark" aria-hidden="true">♛</span>
+    <h1 class="bar-title">{barTitle}</h1>
+    <button
+      class="icon-btn"
+      class:on={app.view === 'settings'}
+      onclick={() => app.goSettings()}
+      aria-label="Settings"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7">
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.2a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4 1.7 1.7 0 0 0-1.6 1z" />
+      </svg>
+    </button>
+  </header>
 
-  {#if !app.ready}
-    <p class="hint-line">Setting the press…</p>
-  {:else if app.view === 'cabinet'}
-    <header>
-      <h1>The collector's cabinet</h1>
-      <p class="rule">One keepsake per completed tournament</p>
-    </header>
-
-    <div class="shelf-row">
-      <figure class="keepsake" class:locked={!app.orbitComplete}>
-        <div class="keepsake-frame">
-          <img src={orreryArt} alt={orbit.collectible.name} />
-          {#if !app.orbitComplete}
-            <div class="keepsake-veil">
-              <span class="veil-mark">?</span>
+  <main>
+    {#if !app.ready}
+      <p class="hint-line">Setting the press…</p>
+    {:else if app.view === 'settings'}
+      <section class="sheet">
+        <h2 class="section-title">Preferences</h2>
+        {#each [{ key: 'autoX', label: 'Auto-mark', note: 'Cross off cells a new ♛ rules out' }, { key: 'showConflicts', label: 'Highlight clashes', note: 'Colour ♛ that attack each other' }, { key: 'sound', label: 'Sound', note: 'Soft paper and stamp sounds' }] as const as row (row.key)}
+          <div class="pref">
+            <div class="pref-text">
+              <p class="pref-label">{row.label}</p>
+              <p class="pref-note">{row.note}</p>
             </div>
-          {/if}
-        </div>
-        <figcaption>
-          {#if app.orbitComplete}
-            {orbit.name} ★
-          {:else}
-            {orbit.name} · {app.orbitProgress.completed.length} / {orbit.setup.levelCount}
-          {/if}
-        </figcaption>
-      </figure>
-    </div>
-    <div class="shelf-board"></div>
-
-    <div class="plaques">
-      <span class="plaque">★ {app.totalStars} stars</span>
-      <span class="plaque">{app.orbitProgress.completed.length} levels cleared</span>
-    </div>
-  {:else if app.view === 'orbitHome'}
-    <header>
-      <h1>{orbit.name}</h1>
-      <p class="rule">{orbit.goal} · {orbitDone} / {orbit.setup.levelCount}</p>
-    </header>
-
-    <div class="parts">
-      {#each orbit.collectible.partGlyphs as glyph, p (p)}
-        <span class="part" class:earned={app.partsEarned.has(p)}>{glyph}</span>
-      {/each}
-    </div>
-
-    {#if orbitDone < orbit.setup.levelCount}
-      <button class="tag primary" onclick={() => app.startOrbitLevel(app.currentOrbitIndex)}>
-        {orbitDone === 0 ? 'Launch' : 'Continue'} · Level {app.currentOrbitIndex + 1}
-      </button>
-    {:else}
-      <p class="rule">Journey complete — the orrery is built. ✶</p>
-    {/if}
-
-    <div class="rail">
-      {#each orbit.levels as level, i (i)}
-        {@const done = doneSet.has(i)}
-        {@const current = i === app.currentOrbitIndex && !done}
-        {@const locked = i > app.currentOrbitIndex && !done}
-        {@const stars = app.starsFor(i)}
-        <div class="node-wrap">
-          <button
-            class="node"
-            class:done
-            class:current
-            class:station={level.special}
-            disabled={locked}
-            onclick={() => app.startOrbitLevel(i)}
-            aria-label={`Level ${i + 1}: ${level.name}${done ? `, completed, ${stars} of 3 stars` : locked ? ', locked' : ''}`}
-          >
-            {level.special && done ? orbit.collectible.partGlyphs[level.partIndex ?? 0] : i + 1}
-          </button>
-          {#if orbit.setup.stars}
-            <span class="stars" class:dim={locked} aria-hidden="true">
-              {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
-            </span>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {:else}
-    {#if app.view === 'orbitPlay' && app.currentLevel}
-      <header class="level-head">
-        <button class="tag slim" onclick={() => app.goOrbitHome()}>‹ Map</button>
-        <div class="level-title">
-          <h2>Level {app.levelIndex + 1} · {app.currentLevel.name}</h2>
-          <p class="rule slim-rule">{app.currentLevel.difficulty}{app.currentLevel.special ? ' · part on completion' : ''}</p>
-        </div>
-      </header>
-    {:else}
-      <header>
-        <h1>Reign</h1>
-        <p class="rule">One ♛ in every row, column, and colour. No two ♛ may touch.</p>
-      </header>
-
-      <div class="controls">
-        {#each ['easy', 'medium', 'hard'] as const as d (d)}
-          <button class="tag" class:active={app.difficulty === d} onclick={() => app.newGame(d)}>
-            {d[0].toUpperCase() + d.slice(1)}
-          </button>
-        {/each}
-        <button class="tag" onclick={() => app.newGame()}>New</button>
-      </div>
-    {/if}
-
-    {#if app.game}
-      <div class="statusbar">
-        <button class="tag slim" onclick={() => app.togglePause()} disabled={app.solved}>
-          {app.paused ? '▶' : '❙❙'}
-        </button>
-        <span class="time" class:dim={app.paused}>{timeLabel}</span>
-        <button class="tag slim" onclick={() => app.undo()} disabled={app.undoDepth === 0 || app.paused}>
-          Undo
-        </button>
-        <button class="tag slim" onclick={() => app.requestHint()} disabled={app.paused || app.solved}>
-          Hint
-        </button>
-        <button class="tag slim" class:active={showSettings} onclick={() => (showSettings = !showSettings)}>
-          ⚙
-        </button>
-      </div>
-
-      {#if showSettings}
-        <div class="settings">
-          <button
-            class="tag slim"
-            class:active={app.settings.autoX}
-            onclick={() => app.setSetting('autoX', !app.settings.autoX)}
-          >
-            Auto-× {app.settings.autoX ? 'on' : 'off'}
-          </button>
-          <button
-            class="tag slim"
-            class:active={app.settings.showConflicts}
-            onclick={() => app.setSetting('showConflicts', !app.settings.showConflicts)}
-          >
-            Show clashes {app.settings.showConflicts ? 'on' : 'off'}
-          </button>
-        </div>
-      {/if}
-
-      <div class="board-zone">
-        <Board
-          puzzle={app.game.puzzle}
-          marks={app.marks}
-          conflicts={visibleConflicts}
-          hintCells={app.hintCells}
-          hintDanger={app.hintIsMistake}
-          queenGlyph={app.variant?.queenGlyph ?? '♛'}
-          onTap={(i) => app.tap(i)}
-          onBeginPaint={() => app.beginPaint()}
-          onPaint={(i) => app.paintX(i)}
-        />
-        {#if app.paused}
-          <div class="pause-cover">
-            <span class="pause-word">Paused</span>
-            <button class="tag" onclick={() => app.togglePause()}>Resume</button>
+            <button
+              class="switch"
+              class:on={app.settings[row.key]}
+              role="switch"
+              aria-checked={app.settings[row.key]}
+              aria-label={row.label}
+              onclick={() => app.setSetting(row.key, !app.settings[row.key])}
+            >
+              <span class="knob"></span>
+            </button>
           </div>
-        {/if}
-      </div>
+        {/each}
 
-      {#if app.solved}
-        <div class="solved">
-          {#if app.view === 'orbitPlay' && app.lastStars !== null}
-            <span class="stars big" aria-label={`${app.lastStars} of 3 stars`}>
-              {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < (app.lastStars ?? 0)}>★</span>{/each}
-            </span>
-          {/if}
-          <span class="solved-stamp">
-            {#if app.view === 'orbitPlay' && app.currentLevel?.special}
-              Part secured {orbit.collectible.partGlyphs[app.currentLevel.partIndex ?? 0]} · {timeLabel}
-            {:else}
-              Solved · {timeLabel}
-            {/if}
-          </span>
-          {#if app.view === 'orbitPlay'}
-            <div class="controls">
-              {#if app.levelIndex + 1 < orbit.levels.length}
-                <button class="tag primary" onclick={() => app.nextOrbitLevel()}>Next level</button>
-              {/if}
-              <button class="tag" onclick={() => app.goOrbitHome()}>Map</button>
-            </div>
+        <h2 class="section-title">Your progress</h2>
+        <div class="stack">
+          <button class="tag wide" onclick={() => app.downloadBackup()}>Export backup</button>
+          <button class="tag wide" onclick={() => fileInput.click()}>Import backup</button>
+          <input
+            bind:this={fileInput}
+            type="file"
+            accept="application/json"
+            onchange={onPickFile}
+            hidden
+          />
+          {#if confirmReset}
+            <button class="tag wide danger" onclick={() => app.resetEverything()}>
+              Tap again to erase everything
+            </button>
           {:else}
-            <button class="tag" onclick={() => app.newGame()}>Play again</button>
+            <button class="tag wide danger-quiet" onclick={() => (confirmReset = true)}>
+              Reset all progress
+            </button>
           {/if}
         </div>
-      {:else if app.activeHint}
-        <p class="hint-line hint-message">{app.hintText}</p>
+        <p class="colophon">Reign · v0.1 · pressed and bound at home</p>
+      </section>
+    {:else if app.view === 'cabinet'}
+      <p class="rule centered">One keepsake per completed quest</p>
+
+      <div class="shelf-row">
+        <figure class="keepsake" class:locked={!app.orbitComplete}>
+          <div class="keepsake-frame">
+            <img src={orreryArt} alt={orbit.collectible.name} />
+            {#if !app.orbitComplete}
+              <div class="keepsake-veil"><span class="veil-mark">?</span></div>
+            {/if}
+          </div>
+          <figcaption>
+            {#if app.orbitComplete}
+              {orbit.name} ★
+            {:else}
+              {orbit.name} · {orbitDone} / {orbit.setup.levelCount}
+            {/if}
+          </figcaption>
+        </figure>
+      </div>
+      <div class="shelf-board"></div>
+
+      <div class="plaques">
+        <span class="plaque">★ {app.totalStars} stars</span>
+        <span class="plaque">{orbitDone} levels cleared</span>
+      </div>
+    {:else if app.view === 'orbitHome'}
+      <header class="screen-head">
+        <h2 class="display">{orbit.name}</h2>
+        <p class="rule">{orbit.goal} · {orbitDone} / {orbit.setup.levelCount}</p>
+      </header>
+
+      <div class="parts">
+        {#each orbit.collectible.partGlyphs as glyph, p (p)}
+          <span class="part" class:earned={app.partsEarned.has(p)}>{glyph}</span>
+        {/each}
+      </div>
+
+      {#if orbitDone < orbit.setup.levelCount}
+        <button class="tag primary" onclick={() => app.startOrbitLevel(app.currentOrbitIndex)}>
+          {orbitDone === 0 ? 'Launch' : 'Continue'} · Level {app.currentOrbitIndex + 1}
+        </button>
       {:else}
-        <p class="hint-line">Tap once for ×, again for ♛. Drag to mark × across cells.</p>
+        <p class="rule">Journey complete — the orrery is built. ✶</p>
+      {/if}
+
+      <div class="rail">
+        {#each orbit.levels as level, i (i)}
+          {@const done = doneSet.has(i)}
+          {@const current = i === app.currentOrbitIndex && !done}
+          {@const locked = i > app.currentOrbitIndex && !done}
+          {@const stars = app.starsFor(i)}
+          <div class="node-wrap">
+            <button
+              class="node"
+              class:done
+              class:current
+              class:station={level.special}
+              disabled={locked}
+              onclick={() => app.startOrbitLevel(i)}
+              aria-label={`Level ${i + 1}: ${level.name}${done ? `, completed, ${stars} of 3 stars` : locked ? ', locked' : ''}`}
+            >
+              {level.special && done ? orbit.collectible.partGlyphs[level.partIndex ?? 0] : i + 1}
+            </button>
+            {#if orbit.setup.stars}
+              <span class="stars" class:dim={locked} aria-hidden="true">
+                {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
+              </span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {:else}
+      {#if app.view === 'orbitPlay' && app.currentLevel}
+        <header class="level-head">
+          <button class="tag slim" onclick={() => app.goOrbitHome()}>‹ Map</button>
+          <div class="level-title">
+            <h2>{app.currentLevel.name}</h2>
+            <p class="rule slim-rule">
+              {app.currentLevel.difficulty}{app.currentLevel.special ? ' · part on completion' : ''}
+            </p>
+          </div>
+        </header>
+      {:else}
+        <header class="screen-head">
+          <h2 class="display">Reign</h2>
+          <p class="rule italic">Every kingdom needs its queen.</p>
+        </header>
+
+        <div class="controls">
+          {#each ['easy', 'medium', 'hard'] as const as d (d)}
+            <button class="tag" class:active={app.difficulty === d} onclick={() => app.newGame(d)}>
+              {d}
+            </button>
+          {/each}
+          <button class="tag" onclick={() => app.newGame()}>New</button>
+        </div>
+      {/if}
+
+      {#if app.game}
+        <div class="statusbar">
+          <button class="tag slim" onclick={() => app.togglePause()} disabled={app.solved}>
+            {app.paused ? '▶' : '❙❙'}
+          </button>
+          <span class="time" class:dim={app.paused}>{timeLabel}</span>
+          <button
+            class="tag slim"
+            onclick={() => app.undo()}
+            disabled={app.undoDepth === 0 || app.paused}
+          >
+            Undo
+          </button>
+          <button class="tag slim hint" onclick={() => app.requestHint()} disabled={app.paused || app.solved}>
+            Hint
+          </button>
+        </div>
+
+        <div class="board-zone">
+          <Board
+            puzzle={app.game.puzzle}
+            marks={app.marks}
+            conflicts={visibleConflicts}
+            hintCells={app.hintCells}
+            hintDanger={app.hintIsMistake}
+            queenGlyph={app.variant?.queenGlyph ?? '♛'}
+            onTap={(i) => app.tap(i)}
+            onBeginPaint={() => app.beginPaint()}
+            onPaint={(i) => app.paintX(i)}
+          />
+          {#if app.paused}
+            <div class="pause-cover">
+              <span class="pause-word">Paused</span>
+              <button class="tag" onclick={() => app.togglePause()}>Resume</button>
+            </div>
+          {/if}
+        </div>
+
+        {#if app.solved}
+          <div class="solved">
+            {#if app.view === 'orbitPlay' && app.lastStars !== null}
+              <span class="stars big" aria-label={`${app.lastStars} of 3 stars`}>
+                {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < (app.lastStars ?? 0)}>★</span>{/each}
+              </span>
+            {/if}
+            <span class="solved-stamp">
+              {#if app.view === 'orbitPlay' && app.currentLevel?.special}
+                Part secured {orbit.collectible.partGlyphs[app.currentLevel.partIndex ?? 0]} · {timeLabel}
+              {:else}
+                Solved · {timeLabel}
+              {/if}
+            </span>
+            {#if app.view === 'orbitPlay'}
+              <div class="controls">
+                {#if app.levelIndex + 1 < orbit.levels.length}
+                  <button class="tag primary" onclick={() => app.nextOrbitLevel()}>Next level</button>
+                {/if}
+                <button class="tag" onclick={() => app.goOrbitHome()}>Map</button>
+              </div>
+            {:else}
+              <button class="tag primary" onclick={() => app.newGame()}>Play again</button>
+            {/if}
+          </div>
+        {:else if app.activeHint}
+          <p class="hint-line hint-message">{app.hintText}</p>
+        {:else}
+          <p class="hint-line">
+            Place one ♛ per row, column, and colour region. ♛ cannot touch, even diagonally.
+          </p>
+        {/if}
       {/if}
     {/if}
-  {/if}
-</main>
+  </main>
+
+  <nav class="bottomnav">
+    <button class="navitem" class:on={app.view === 'quick'} onclick={() => app.goQuick()}>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+      <span>Play</span>
+    </button>
+    <button
+      class="navitem"
+      class:on={app.view === 'orbitHome' || app.view === 'orbitPlay'}
+      onclick={() => app.goOrbitHome()}
+    >
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7">
+        <path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z" /><path d="M9 4v13M15 6.5v13" />
+      </svg>
+      <span>Quest</span>
+    </button>
+    <button class="navitem" class:on={app.view === 'cabinet'} onclick={() => app.goCabinet()}>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7">
+        <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M10 13h4" />
+      </svg>
+      <span>Cabinet</span>
+    </button>
+  </nav>
+</div>
 
 <style>
-  main {
+  .app {
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: max(20px, env(safe-area-inset-top)) 16px 32px;
     transition: background 300ms ease;
   }
 
-  .tabs {
+  .appbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--ink-faint);
   }
 
-  header {
+  .mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    background: var(--paper-raised);
+    border: 1px solid var(--ink-faint);
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  .bar-title {
+    flex: 1;
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-soft);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .icon-btn.on {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 16px 24px;
+    width: 100%;
+  }
+
+  .screen-head {
     text-align: center;
   }
 
-  h1 {
+  .display {
     font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 32px;
-    letter-spacing: 0.02em;
+    font-weight: 700;
+    font-size: 34px;
+    letter-spacing: 0.01em;
     margin: 0;
     color: var(--ink);
   }
 
   h2 {
     font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: 20px;
+    font-weight: 700;
+    font-size: 19px;
     margin: 0;
     color: var(--ink);
   }
@@ -288,9 +420,20 @@
     max-width: 340px;
   }
 
+  .rule.italic {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 15px;
+  }
+
+  .rule.centered {
+    text-align: center;
+  }
+
   .slim-rule {
     margin: 2px 0 0;
     font-size: 12px;
+    text-transform: capitalize;
   }
 
   .level-head {
@@ -302,7 +445,6 @@
   }
 
   .controls,
-  .settings,
   .statusbar {
     display: flex;
     gap: 8px;
@@ -311,9 +453,18 @@
     align-items: center;
   }
 
+  .statusbar {
+    gap: 10px;
+  }
+
   .tag.slim {
-    padding: 5px 12px;
-    font-size: 13px;
+    padding: 6px 13px;
+    font-size: 11.5px;
+  }
+
+  .tag.hint {
+    color: var(--gold-deep, #a8813f);
+    border-color: var(--gold);
   }
 
   .tag.primary {
@@ -322,15 +473,32 @@
     color: #3a2c10;
   }
 
+  .tag.wide {
+    width: 100%;
+    text-align: center;
+  }
+
+  .tag.danger-quiet {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+
+  .tag.danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--paper);
+  }
+
   .tag:disabled {
     opacity: 0.4;
     cursor: default;
   }
 
   .time {
+    font-family: var(--font-serif);
     font-variant-numeric: tabular-nums;
-    font-size: 15px;
-    min-width: 44px;
+    font-size: 22px;
+    min-width: 56px;
     text-align: center;
     color: var(--ink);
   }
@@ -348,9 +516,8 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     font-size: 15px;
     border: 1.5px dashed var(--ink-soft);
     color: var(--ink-soft);
@@ -377,32 +544,6 @@
     gap: 1px;
   }
 
-  .stars {
-    display: flex;
-    gap: 1px;
-    line-height: 1;
-  }
-
-  .stars.dim {
-    opacity: 0.45;
-  }
-
-  .star {
-    font-size: 9px;
-    color: transparent;
-    -webkit-text-stroke: 0.8px var(--ink-soft);
-  }
-
-  .star.filled {
-    color: var(--gold);
-    -webkit-text-stroke: 0;
-  }
-
-  .stars.big .star {
-    font-size: 26px;
-    animation: stamp 300ms cubic-bezier(0.2, 1.4, 0.4, 1);
-  }
-
   .node {
     width: 44px;
     height: 44px;
@@ -410,7 +551,7 @@
     border: 1.5px solid var(--ink-soft);
     background: transparent;
     color: var(--ink-soft);
-    font: inherit;
+    font-family: var(--font-sans);
     font-size: 14px;
     cursor: pointer;
   }
@@ -439,8 +580,177 @@
     cursor: default;
   }
 
+  .stars {
+    display: flex;
+    gap: 1px;
+    line-height: 1;
+  }
+
+  .stars.dim {
+    opacity: 0.45;
+  }
+
+  .star {
+    font-size: 9px;
+    color: transparent;
+    -webkit-text-stroke: 0.8px var(--ink-soft);
+  }
+
+  .star.filled {
+    color: var(--gold);
+    -webkit-text-stroke: 0;
+  }
+
+  .stars.big .star {
+    font-size: 26px;
+    animation: stamp 300ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+
   .board-zone {
     position: relative;
+  }
+
+  .pause-cover {
+    position: absolute;
+    inset: 0;
+    background: var(--paper);
+    border: 3px solid var(--board-line);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .pause-word {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    color: var(--ink-soft);
+  }
+
+  .hint-line {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 330px;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .hint-message {
+    color: var(--ink);
+    font-size: 14px;
+    border: 1.5px dashed var(--gold);
+    border-radius: 10px;
+    padding: 8px 14px;
+    background: var(--paper-raised);
+  }
+
+  .solved {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .solved-stamp {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--gold);
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    padding: 4px 18px;
+    transform: rotate(-3deg);
+    animation: stamp 240ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+
+  @keyframes stamp {
+    0% {
+      transform: rotate(-3deg) scale(1.6);
+      opacity: 0;
+    }
+    100% {
+      transform: rotate(-3deg) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .sheet {
+    width: min(92vw, 460px);
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    margin: 10px 0 14px;
+  }
+
+  .pref {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+
+  .pref-text {
+    flex: 1;
+  }
+
+  .pref-label {
+    margin: 0;
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  .pref-note {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .switch {
+    width: 52px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1.5px solid var(--ink-faint);
+    background: var(--paper-raised);
+    padding: 2px;
+    display: flex;
+    justify-content: flex-start;
+    cursor: pointer;
+    transition: background 160ms ease;
+  }
+
+  .switch.on {
+    background: var(--ink);
+    border-color: var(--ink);
+    justify-content: flex-end;
+  }
+
+  .knob {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 160ms ease;
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .colophon {
+    margin: 26px 0 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    opacity: 0.75;
+    letter-spacing: 0.04em;
   }
 
   .shelf-row {
@@ -448,7 +758,6 @@
     gap: 18px;
     align-items: flex-end;
     justify-content: center;
-    padding-bottom: 0;
   }
 
   .keepsake {
@@ -478,9 +787,8 @@
   .keepsake-veil {
     position: absolute;
     inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
   }
 
   .veil-mark {
@@ -524,68 +832,43 @@
     padding: 4px 12px;
   }
 
-  .pause-cover {
-    position: absolute;
-    inset: 0;
-    background: var(--paper);
-    border: 3px solid var(--board-line);
-    border-radius: 10px;
+  .bottomnav {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: stretch;
+    gap: 4px;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--ink-faint);
+  }
+
+  .navitem {
+    flex: 1;
+    min-height: 52px;
+    border: 0;
+    background: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 14px;
-  }
-
-  .pause-word {
-    font-family: var(--font-serif);
-    font-size: 24px;
+    gap: 3px;
     color: var(--ink-soft);
-  }
-
-  .hint-line {
-    font-size: 13px;
-    color: var(--ink-soft);
-    margin: 0;
-    max-width: 360px;
-    text-align: center;
-  }
-
-  .hint-message {
-    color: var(--ink);
-    font-size: 14px;
-    border: 1.5px dashed var(--gold);
+    font-family: var(--font-sans);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    cursor: pointer;
     border-radius: 10px;
-    padding: 8px 14px;
+    transition: color 140ms ease;
+  }
+
+  .navitem.on {
+    color: var(--ink);
     background: var(--paper-raised);
-  }
-
-  .solved {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .solved-stamp {
-    font-family: var(--font-serif);
-    font-size: 22px;
-    color: var(--gold);
-    border: 2px solid var(--gold);
-    border-radius: 8px;
-    padding: 4px 18px;
-    transform: rotate(-3deg);
-    animation: stamp 240ms cubic-bezier(0.2, 1.4, 0.4, 1);
-  }
-
-  @keyframes stamp {
-    0% {
-      transform: rotate(-3deg) scale(1.6);
-      opacity: 0;
-    }
-    100% {
-      transform: rotate(-3deg) scale(1);
-      opacity: 1;
-    }
+    box-shadow: inset 0 0 0 1px var(--ink-faint);
   }
 </style>
