@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@reign/engine": "0.1.0"
+    "@reign/engine": "0.1.0",
+    "idb": "^8.0.3"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

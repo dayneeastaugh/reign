@@ -6,14 +6,61 @@
     marks,
     conflicts,
     onTap,
+    onBeginPaint,
+    onPaint,
   }: {
     puzzle: Puzzle;
     marks: number[];
     conflicts: Set<number>;
     onTap: (i: number) => void;
+    onBeginPaint: () => void;
+    onPaint: (i: number) => void;
   } = $props();
 
   const n = $derived(puzzle.size);
+
+  let pointerDownCell = -1;
+  let stroking = false;
+  let suppressClick = false;
+
+  function cellAt(x: number, y: number): number {
+    const el = document.elementFromPoint(x, y)?.closest('.cell');
+    if (!el) return -1;
+    const idx = (el as HTMLElement).dataset.i;
+    return idx === undefined ? -1 : Number(idx);
+  }
+
+  function handlePointerDown(e: PointerEvent, i: number) {
+    pointerDownCell = i;
+    stroking = false;
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    if (pointerDownCell < 0) return;
+    const over = cellAt(e.clientX, e.clientY);
+    if (over < 0 || over === pointerDownCell) return;
+    if (!stroking) {
+      stroking = true;
+      suppressClick = true;
+      onBeginPaint();
+      onPaint(pointerDownCell);
+    }
+    onPaint(over);
+  }
+
+  function handlePointerUp() {
+    pointerDownCell = -1;
+    stroking = false;
+  }
+
+  function handleClick(i: number) {
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
+    onTap(i);
+  }
 
   function cellStyle(i: number): string {
     const { regions } = puzzle;
@@ -40,9 +87,24 @@
   }
 </script>
 
-<div class="board" style="grid-template-columns: repeat({n}, 1fr);" role="grid" aria-label="Puzzle board">
+<div
+  class="board"
+  style="grid-template-columns: repeat({n}, 1fr);"
+  role="grid"
+  aria-label="Puzzle board"
+  onpointermove={handlePointerMove}
+  onpointerup={handlePointerUp}
+  onpointercancel={handlePointerUp}
+>
   {#each marks as m, i (i)}
-    <button class="cell" style={cellStyle(i)} onclick={() => onTap(i)} aria-label={cellLabel(i)}>
+    <button
+      class="cell"
+      data-i={i}
+      style={cellStyle(i)}
+      onpointerdown={(e) => handlePointerDown(e, i)}
+      onclick={() => handleClick(i)}
+      aria-label={cellLabel(i)}
+    >
       {#if m === QUEEN}
         <span class="queen" class:conflict={conflicts.has(i)}>♛</span>
       {:else if m === X}
@@ -59,7 +121,7 @@
     border: 3px solid var(--ink);
     border-radius: 10px;
     overflow: hidden;
-    touch-action: manipulation;
+    touch-action: none;
   }
 
   .cell {
@@ -79,6 +141,7 @@
     color: var(--ink);
     line-height: 1;
     animation: stamp 160ms cubic-bezier(0.2, 1.4, 0.4, 1);
+    pointer-events: none;
   }
 
   .queen.conflict {
@@ -89,6 +152,7 @@
     font-size: clamp(12px, 3.2vw, 17px);
     color: var(--ink-soft);
     line-height: 1;
+    pointer-events: none;
   }
 
   @keyframes stamp {
