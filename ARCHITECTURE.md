@@ -214,6 +214,14 @@ cabinet. Working name and details refinable in content, not code.
 - Progression is subtle (req 10): per-level results (time, hints, mistakes), quiet
   performance markers, tournament completion records, lifetime stats and streaks,
   achievements as a checklist evaluated from stats. No shouting XP bars.
+- **Completion stars (tournaments)**: every level shows a 3-star row under its map
+  node — empty outlines until played, filled gold on completion. The scoring rule is
+  **declared per tournament in the setup block** (`stars: {metric, two, three}`), so
+  future tournaments can score differently. Grand Orbit uses the `moves` metric:
+  queen placements + removals + hints used, against a par of one placement per row —
+  X-mark note-taking is always free. 1★ = completion, 2★/3★ = overhead within the
+  declared thresholds. Stars never downgrade on replay, and collectible parts remain
+  completion-only — stars are recognition, never a gate.
 - Mistake policy: live conflict highlighting by default, "purist mode" toggle to disable.
 - QoL: undo stack, drag-to-mark X's, optional auto-X on queen placement, timer with pause.
 - Accessibility: CVD-tested palettes plus optional per-region pattern overlay;

@@ -73,17 +73,25 @@
         {@const done = doneSet.has(i)}
         {@const current = i === app.currentOrbitIndex && !done}
         {@const locked = i > app.currentOrbitIndex && !done}
-        <button
-          class="node"
-          class:done
-          class:current
-          class:station={level.special}
-          disabled={locked}
-          onclick={() => app.startOrbitLevel(i)}
-          aria-label={`Level ${i + 1}: ${level.name}${done ? ', completed' : locked ? ', locked' : ''}`}
-        >
-          {level.special && done ? orbit.collectible.partGlyphs[level.partIndex ?? 0] : i + 1}
-        </button>
+        {@const stars = app.starsFor(i)}
+        <div class="node-wrap">
+          <button
+            class="node"
+            class:done
+            class:current
+            class:station={level.special}
+            disabled={locked}
+            onclick={() => app.startOrbitLevel(i)}
+            aria-label={`Level ${i + 1}: ${level.name}${done ? `, completed, ${stars} of 3 stars` : locked ? ', locked' : ''}`}
+          >
+            {level.special && done ? orbit.collectible.partGlyphs[level.partIndex ?? 0] : i + 1}
+          </button>
+          {#if orbit.setup.stars}
+            <span class="stars" class:dim={locked} aria-hidden="true">
+              {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
+            </span>
+          {/if}
+        </div>
       {/each}
     </div>
   {:else}
@@ -169,6 +177,11 @@
 
       {#if app.solved}
         <div class="solved">
+          {#if app.view === 'orbitPlay' && app.lastStars !== null}
+            <span class="stars big" aria-label={`${app.lastStars} of 3 stars`}>
+              {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < (app.lastStars ?? 0)}>★</span>{/each}
+            </span>
+          {/if}
           <span class="solved-stamp">
             {#if app.view === 'orbitPlay' && app.currentLevel?.special}
               Part secured {orbit.collectible.partGlyphs[app.currentLevel.partIndex ?? 0]} · {timeLabel}
@@ -317,9 +330,42 @@
   .rail {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px 8px;
     justify-content: center;
     width: min(92vw, 420px);
+  }
+
+  .node-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .stars {
+    display: flex;
+    gap: 1px;
+    line-height: 1;
+  }
+
+  .stars.dim {
+    opacity: 0.45;
+  }
+
+  .star {
+    font-size: 9px;
+    color: transparent;
+    -webkit-text-stroke: 0.8px var(--ink-soft);
+  }
+
+  .star.filled {
+    color: var(--gold);
+    -webkit-text-stroke: 0;
+  }
+
+  .stars.big .star {
+    font-size: 26px;
+    animation: stamp 300ms cubic-bezier(0.2, 1.4, 0.4, 1);
   }
 
   .node {

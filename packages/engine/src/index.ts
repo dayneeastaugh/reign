@@ -8,6 +8,8 @@ export { nextHint } from './hints';
 export {
   CONTENT_SCHEMA_VERSION,
   validateTournament,
+  scoreStars,
+  type StarRuleDef,
   type PlayfieldVariantDef,
   type ThemeDef,
   type LevelDef,

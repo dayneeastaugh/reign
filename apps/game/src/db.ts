@@ -16,6 +16,7 @@ export interface SavedGame {
   mode?: 'quick' | 'tournament';
   tournamentId?: string;
   levelIndex?: number;
+  queenActions?: number;
 }
 
 export interface GameResult {

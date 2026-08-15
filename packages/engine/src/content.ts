@@ -46,6 +46,31 @@ export interface CollectibleDef {
   partGlyphs: string[];
 }
 
+export interface StarRuleDef {
+  /**
+   * Metric family. 'moves' counts queen placements + removals + hints used
+   * against a par of one placement per row; X notes are free.
+   */
+  metric: 'moves';
+  /** Maximum overhead over par for three stars. */
+  three: number;
+  /** Maximum overhead over par for two stars (completion alone is one star). */
+  two: number;
+}
+
+/** Stars earned for a completed level under a star rule. */
+export function scoreStars(
+  rule: StarRuleDef,
+  queenActions: number,
+  hintsUsed: number,
+  size: number,
+): 1 | 2 | 3 {
+  const overhead = queenActions + hintsUsed - size;
+  if (overhead <= rule.three) return 3;
+  if (overhead <= rule.two) return 2;
+  return 1;
+}
+
 export interface TournamentDef {
   schemaVersion: number;
   id: string;
@@ -56,6 +81,7 @@ export interface TournamentDef {
     levelCount: number;
     specialLevels: number[];
     partCount: number;
+    stars?: StarRuleDef;
   };
   collectible: CollectibleDef;
   theme: ThemeDef;
@@ -79,6 +105,12 @@ export function validateTournament(t: TournamentDef): string[] {
   }
   if (t.setup.partCount !== t.collectible.partGlyphs.length) {
     err(`setup.partCount ${t.setup.partCount} != partGlyphs.length ${t.collectible.partGlyphs.length}`);
+  }
+  if (t.setup.stars) {
+    const s = t.setup.stars;
+    if (s.metric !== 'moves') err(`unknown star metric ${(s as { metric: string }).metric}`);
+    if (s.three < 0) err(`stars.three must be >= 0, got ${s.three}`);
+    if (s.two < s.three) err(`stars.two (${s.two}) must be >= stars.three (${s.three})`);
   }
   const specials = new Set(t.setup.specialLevels);
   if (specials.size !== t.setup.specialLevels.length) err('specialLevels contains duplicates');

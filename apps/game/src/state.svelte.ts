@@ -1,6 +1,7 @@
 import {
   generatePuzzle,
   nextHint,
+  scoreStars,
   EMPTY,
   X,
   QUEEN,
@@ -62,7 +63,14 @@ export class AppState {
   view = $state<View>('quick');
   sessionMode = $state<'quick' | 'tournament'>('quick');
   levelIndex = $state(0);
-  orbitProgress = $state<{ completed: number[] }>({ completed: [] });
+  orbitProgress = $state<{ completed: number[]; stars: Record<string, number> }>({
+    completed: [],
+    stars: {},
+  });
+  /** Queen placements + removals this session — the star metric's move count. */
+  queenActions = $state(0);
+  /** Stars earned for the level just solved (tournament only). */
+  lastStars = $state<number | null>(null);
 
   private undoStack: number[][] = [];
   private resultRecorded = false;
@@ -109,10 +117,15 @@ export class AppState {
     const [settings, saved, progress] = await Promise.all([
       kvGet<Settings>('settings'),
       kvGet<SavedGame>('current'),
-      kvGet<{ completed: number[] }>(`tournament:${orbit.id}`),
+      kvGet<{ completed: number[]; stars?: Record<string, number> }>(`tournament:${orbit.id}`),
     ]);
     if (settings) this.settings = { ...DEFAULT_SETTINGS, ...settings };
-    if (progress) this.orbitProgress = progress;
+    if (progress) {
+      const stars = progress.stars ?? {};
+      // Levels completed before stars existed keep the completion star.
+      for (const i of progress.completed) stars[i] ??= 1;
+      this.orbitProgress = { completed: progress.completed, stars };
+    }
     const resumable =
       saved && saved.marks.filter((m) => m === QUEEN).length < saved.game.puzzle.size;
     if (
@@ -127,6 +140,7 @@ export class AppState {
       this.game = saved.game;
       this.marks = saved.marks;
       this.elapsed = saved.elapsed;
+      this.queenActions = saved.queenActions ?? 0;
       this.view = 'orbitPlay';
     } else if (resumable) {
       this.game = saved.game;
@@ -186,17 +200,30 @@ export class AppState {
     this.undoStack = [];
     this.undoDepth = 0;
     this.hintsUsed = 0;
+    this.queenActions = 0;
+    this.lastStars = null;
     this.activeHint = null;
     this.resultRecorded = false;
     this.view = 'orbitPlay';
     this.persistSoon();
   }
 
+  starsFor(levelIdx: number): number {
+    return this.orbitProgress.stars[levelIdx] ?? 0;
+  }
+
   private completeOrbitLevel(): void {
+    const rule = orbit.setup.stars;
+    const stars = rule
+      ? scoreStars(rule, this.queenActions, this.hintsUsed, this.game!.puzzle.size)
+      : 1;
+    this.lastStars = stars;
+    const prev = this.orbitProgress.stars[this.levelIndex] ?? 0;
+    if (stars > prev) this.orbitProgress.stars[this.levelIndex] = stars;
     if (!this.orbitProgress.completed.includes(this.levelIndex)) {
       this.orbitProgress.completed.push(this.levelIndex);
-      void kvSet(`tournament:${orbit.id}`, $state.snapshot(this.orbitProgress));
     }
+    void kvSet(`tournament:${orbit.id}`, $state.snapshot(this.orbitProgress));
   }
 
   nextOrbitLevel(): void {
@@ -249,8 +276,10 @@ export class AppState {
   tap(i: number): void {
     if (!this.game || this.solved || this.paused) return;
     this.pushUndo();
-    const next = (this.marks[i] + 1) % 3;
+    const prev = this.marks[i];
+    const next = (prev + 1) % 3;
     this.marks[i] = next;
+    if (next === QUEEN || prev === QUEEN) this.queenActions++;
     if (next === QUEEN && this.settings.autoX) this.autoX(i);
     this.activeHint = null;
     this.afterChange();
@@ -353,6 +382,7 @@ export class AppState {
     }
     if (hint.kind === 'mistake') {
       this.pushUndo();
+      if (this.marks[hint.cell] === QUEEN) this.queenActions++;
       this.marks[hint.cell] = EMPTY;
       this.activeHint = null;
       this.afterChange();
@@ -367,6 +397,7 @@ export class AppState {
     this.pushUndo();
     if (step.kind === 'place') {
       this.marks[step.cell] = QUEEN;
+      this.queenActions++;
       if (this.settings.autoX) this.autoX(step.cell);
     } else {
       for (const c of step.cells) if (this.marks[c] === EMPTY) this.marks[c] = X;
@@ -436,6 +467,7 @@ export class AppState {
         elapsed: this.elapsed,
         savedAt: Date.now(),
         mode: this.sessionMode,
+        queenActions: this.queenActions,
         ...(this.sessionMode === 'tournament'
           ? { tournamentId: orbit.id, levelIndex: this.levelIndex }
           : {}),

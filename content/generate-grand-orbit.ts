@@ -141,7 +141,12 @@ const tournament: TournamentDef = {
   name: 'The Grand Orbit',
   version: 1,
   goal: 'Build the brass orrery',
-  setup: { levelCount: LEVEL_COUNT, specialLevels: SPECIALS, partCount: SPECIALS.length },
+  setup: {
+    levelCount: LEVEL_COUNT,
+    specialLevels: SPECIALS,
+    partCount: SPECIALS.length,
+    stars: { metric: 'moves', three: 1, two: 6 },
+  },
   collectible: { name: 'The Brass Orrery', partGlyphs: ['⚙', '◉', '◠', '✶', '✧'] },
   theme: { id: 'orbit', name: 'Space', defaultVariant: 'dusk', variants: VARIANTS },
   levels,
