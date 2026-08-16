@@ -13,6 +13,7 @@ import {
   type UnitRef,
 } from '@reign/engine';
 import orbitJson from '../../../content/tournaments/grand-orbit.json';
+import { sound } from './sound';
 
 export const orbit = orbitJson as unknown as TournamentDef;
 
@@ -140,6 +141,7 @@ export class AppState {
       kvGet<{ completed: number[]; stars?: Record<string, number> }>(`tournament:${orbit.id}`),
     ]);
     if (settings) this.settings = { ...DEFAULT_SETTINGS, ...settings };
+    sound.setEnabled(this.settings.sound);
     if (progress) {
       const stars = progress.stars ?? {};
       // Levels completed before stars existed keep the completion star.
@@ -333,6 +335,7 @@ export class AppState {
     this.marks = prev.marks;
     this.autoCells = prev.auto;
     this.undoDepth = this.undoStack.length;
+    sound.lift();
     this.activeHint = null;
     this.persistSoon();
   }
@@ -349,6 +352,9 @@ export class AppState {
     if (next === QUEEN || prev === QUEEN) this.queenActions++;
     if (next === QUEEN && this.settings.autoX) this.autoX(i);
     if (prev === QUEEN) this.withdrawAutoX();
+    if (next === QUEEN) sound.queen();
+    else if (next === X) sound.mark();
+    else sound.lift();
     this.activeHint = null;
     this.afterChange();
   }
@@ -361,6 +367,7 @@ export class AppState {
     this.marks = new Array(this.n * this.n).fill(EMPTY);
     this.autoCells = new Array(this.n * this.n).fill(false);
     this.activeHint = null;
+    sound.sweep();
     this.afterChange();
   }
 
@@ -377,6 +384,7 @@ export class AppState {
     if (this.marks[i] === EMPTY) {
       this.marks[i] = X;
       this.autoCells[i] = false;
+      sound.mark();
       this.afterChange();
     }
   }
@@ -506,6 +514,7 @@ export class AppState {
 
   requestHint(): void {
     if (!this.game || this.solved || this.paused) return;
+    sound.hint();
     const active = this.activeHint;
     if (!active) {
       const hint = nextHint(this.game, $state.snapshot(this.marks));
@@ -577,6 +586,8 @@ export class AppState {
         finishedAt: Date.now(),
       });
       if (this.sessionMode === 'tournament') this.completeOrbitLevel();
+      if (this.sessionMode === 'tournament' && this.currentLevel?.special) sound.part();
+      else sound.solved();
       void kvDel('current');
     }
   }
@@ -588,6 +599,11 @@ export class AppState {
 
   async setSetting<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void> {
     this.settings[key] = value;
+    if (key === 'sound') {
+      sound.setEnabled(value as boolean);
+      // Let the player hear what they just switched on.
+      if (value) sound.queen();
+    }
     await kvSet('settings', $state.snapshot(this.settings));
   }
 

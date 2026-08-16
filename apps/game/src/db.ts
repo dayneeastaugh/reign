@@ -7,7 +7,7 @@ export interface Settings {
   sound: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoX: false, showConflicts: true, sound: false };
+export const DEFAULT_SETTINGS: Settings = { autoX: false, showConflicts: true, sound: true };
 
 export interface SavedGame {
   game: GeneratedPuzzle;
