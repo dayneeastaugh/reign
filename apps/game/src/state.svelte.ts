@@ -47,9 +47,19 @@ const REGION_NAMES = [
   'denim',
 ];
 
+/**
+ * Hint stages. 'verdict' answers only "are my ♛ in the right places?" without
+ * revealing where; 'locate' points at the unit or the mistake; 'detail' shows
+ * the exact cells. A further press applies the step.
+ */
 export interface ActiveHint {
   hint: Hint;
-  stage: 1 | 2;
+  stage: 'verdict' | 'locate' | 'detail';
+}
+
+interface UndoEntry {
+  marks: number[];
+  auto: boolean[];
 }
 
 export class AppState {
@@ -75,13 +85,18 @@ export class AppState {
   /** Stars earned for the level just solved (tournament only). */
   lastStars = $state<number | null>(null);
 
-  private undoStack: number[][] = [];
+  /** Which × marks were placed by auto-mark, so they can be withdrawn again. */
+  autoCells = $state<boolean[]>([]);
+
+  private undoStack: UndoEntry[] = [];
   private resultRecorded = false;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   n = $derived(this.game?.puzzle.size ?? 0);
 
   queenCells = $derived(this.marks.flatMap((m, i) => (m === QUEEN ? [i] : [])));
+
+  hasMarks = $derived(this.marks.some((m) => m !== EMPTY));
 
   conflicts = $derived.by(() => {
     const bad = new Set<number>();
@@ -142,12 +157,14 @@ export class AppState {
       this.levelIndex = saved.levelIndex;
       this.game = saved.game;
       this.marks = saved.marks;
+      this.autoCells = saved.autoCells ?? new Array(saved.marks.length).fill(false);
       this.elapsed = saved.elapsed;
       this.queenActions = saved.queenActions ?? 0;
       this.view = 'orbitPlay';
     } else if (resumable) {
       this.game = saved.game;
       this.marks = saved.marks;
+      this.autoCells = saved.autoCells ?? new Array(saved.marks.length).fill(false);
       this.elapsed = saved.elapsed;
       this.difficulty = saved.game.difficulty;
     } else {
@@ -204,6 +221,7 @@ export class AppState {
       id: `${orbit.id}-${idx}`,
     };
     this.marks = new Array(level.size * level.size).fill(EMPTY);
+    this.autoCells = new Array(level.size * level.size).fill(false);
     this.elapsed = 0;
     this.paused = false;
     this.undoStack = [];
@@ -286,6 +304,7 @@ export class AppState {
     this.difficulty = d;
     this.game = generatePuzzle({ difficulty: d, seed: randomSeed() });
     this.marks = new Array(this.game.puzzle.size ** 2).fill(EMPTY);
+    this.autoCells = new Array(this.game.puzzle.size ** 2).fill(false);
     this.elapsed = 0;
     this.paused = false;
     this.undoStack = [];
@@ -297,7 +316,10 @@ export class AppState {
   }
 
   private pushUndo(): void {
-    this.undoStack.push($state.snapshot(this.marks));
+    this.undoStack.push({
+      marks: $state.snapshot(this.marks),
+      auto: $state.snapshot(this.autoCells),
+    });
     if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
     this.undoDepth = this.undoStack.length;
   }
@@ -305,7 +327,8 @@ export class AppState {
   undo(): void {
     const prev = this.undoStack.pop();
     if (!prev) return;
-    this.marks = prev;
+    this.marks = prev.marks;
+    this.autoCells = prev.auto;
     this.undoDepth = this.undoStack.length;
     this.activeHint = null;
     this.persistSoon();
@@ -313,12 +336,27 @@ export class AppState {
 
   tap(i: number): void {
     if (!this.game || this.solved || this.paused) return;
+    if (i < 0 || i >= this.marks.length) return;
     this.pushUndo();
     const prev = this.marks[i];
     const next = (prev + 1) % 3;
     this.marks[i] = next;
+    // A tap makes the cell the player's own, so auto-mark no longer owns it.
+    this.autoCells[i] = false;
     if (next === QUEEN || prev === QUEEN) this.queenActions++;
     if (next === QUEEN && this.settings.autoX) this.autoX(i);
+    if (prev === QUEEN) this.withdrawAutoX();
+    this.activeHint = null;
+    this.afterChange();
+  }
+
+  /** Wipes the board back to empty without changing puzzle, timer or moves. */
+  clearBoard(): void {
+    if (!this.game || this.solved || this.paused) return;
+    if (!this.marks.some((m) => m !== EMPTY)) return;
+    this.pushUndo();
+    this.marks = new Array(this.n * this.n).fill(EMPTY);
+    this.autoCells = new Array(this.n * this.n).fill(false);
     this.activeHint = null;
     this.afterChange();
   }
@@ -332,9 +370,44 @@ export class AppState {
 
   paintX(i: number): void {
     if (!this.game || this.solved || this.paused) return;
+    if (i < 0 || i >= this.marks.length) return;
     if (this.marks[i] === EMPTY) {
       this.marks[i] = X;
+      this.autoCells[i] = false;
       this.afterChange();
+    }
+  }
+
+  /** True if a ♛ on `queenCell` rules out `cell`. */
+  private covers(queenCell: number, cell: number): boolean {
+    if (queenCell === cell) return true;
+    const n = this.n;
+    const { regions } = this.game!.puzzle;
+    const qr = Math.floor(queenCell / n);
+    const qc = queenCell % n;
+    const r = Math.floor(cell / n);
+    const c = cell % n;
+    return (
+      qr === r ||
+      qc === c ||
+      regions[cell] === regions[queenCell] ||
+      (Math.abs(qr - r) === 1 && Math.abs(qc - c) === 1)
+    );
+  }
+
+  /**
+   * Withdraw auto-placed × marks that no remaining ♛ rules out. Called after a
+   * ♛ is removed so auto-mark undoes itself as cleanly as it applied.
+   */
+  private withdrawAutoX(): void {
+    if (!this.game) return;
+    const queens = this.marks.flatMap((m, i) => (m === QUEEN ? [i] : []));
+    for (let i = 0; i < this.marks.length; i++) {
+      if (!this.autoCells[i] || this.marks[i] !== X) continue;
+      if (!queens.some((q) => this.covers(q, i))) {
+        this.marks[i] = EMPTY;
+        this.autoCells[i] = false;
+      }
     }
   }
 
@@ -357,24 +430,35 @@ export class AppState {
     return `the ${REGION_NAMES[g % REGION_NAMES.length]} region`;
   }
 
-  /** Cells to spotlight for the current hint stage. */
+  /** Cells to spotlight for the current hint stage. A verdict reveals nothing. */
   hintCells = $derived.by(() => {
     const active = this.activeHint;
-    if (!active) return new Set<number>();
+    if (!active || active.stage === 'verdict') return new Set<number>();
     const { hint, stage } = active;
     if (hint.kind === 'mistake') return new Set([hint.cell]);
     if (hint.kind !== 'step') return new Set<number>();
     const step = hint.step;
-    if (stage === 1 && 'unit' in step && step.unit) return new Set(this.cellsOfUnit(step.unit));
+    if (stage === 'locate' && 'unit' in step && step.unit) return new Set(this.cellsOfUnit(step.unit));
     return new Set(step.kind === 'place' ? [step.cell] : step.cells);
   });
 
-  hintIsMistake = $derived(this.activeHint?.hint.kind === 'mistake');
+  hintIsMistake = $derived(
+    this.activeHint?.hint.kind === 'mistake' && this.activeHint.stage !== 'verdict',
+  );
 
   hintText = $derived.by(() => {
     const active = this.activeHint;
     if (!active) return '';
     const { hint, stage } = active;
+
+    if (stage === 'verdict') {
+      return hint.kind === 'mistake'
+        ? hint.reason === 'wrong-queen'
+          ? 'One of your ♛ isn’t in the right place. Tap Hint again to find it.'
+          : 'A ♛ belongs on one of the cells you’ve crossed off. Tap Hint again to find it.'
+        : 'Every ♛ you’ve placed is right so far. Tap Hint again for a nudge.';
+    }
+
     if (hint.kind === 'complete') return 'The board is already solved.';
     if (hint.kind === 'mistake') {
       return hint.reason === 'wrong-queen'
@@ -385,21 +469,21 @@ export class AppState {
     const where = 'unit' in step && step.unit ? this.unitName(step.unit) : 'the marked cells';
     const apply = ' Tap Hint again to apply.';
     if (step.kind === 'place') {
-      return stage === 1
+      return stage === 'locate'
         ? `Look at ${where} — only one cell can hold its ♛.`
         : `The ♛ of ${where} is forced onto this cell.` + apply;
     }
     switch (step.technique) {
       case 'confinement':
-        return stage === 1
+        return stage === 'locate'
           ? `Every option for ${where} sits on one line.`
           : `Because ${where} is pinned to one line, these cells can be crossed off.` + apply;
       case 'forcing':
-        return stage === 1
+        return stage === 'locate'
           ? `Wherever the ♛ of ${where} lands, some cells are always attacked.`
           : `Every placement in ${where} attacks these cells — cross them off.` + apply;
       default:
-        return stage === 1
+        return stage === 'locate'
           ? 'One cell here leads to a dead end if you try a ♛ on it.'
           : 'A ♛ on this cell leads to a dead end — cross it off.' + apply;
     }
@@ -410,26 +494,36 @@ export class AppState {
     const active = this.activeHint;
     if (!active) {
       this.hintsUsed++;
-      this.activeHint = { hint: nextHint(this.game, $state.snapshot(this.marks)), stage: 1 };
+      const hint = nextHint(this.game, $state.snapshot(this.marks));
+      // With nothing placed there is nothing to vouch for, so skip the verdict.
+      const anyQueens = this.queenCells.length > 0;
+      this.activeHint = { hint, stage: anyQueens ? 'verdict' : 'locate' };
       return;
     }
     const { hint, stage } = active;
+    if (stage === 'verdict') {
+      this.activeHint = { hint, stage: 'locate' };
+      return;
+    }
     if (hint.kind === 'complete') {
       this.activeHint = null;
       return;
     }
     if (hint.kind === 'mistake') {
       this.pushUndo();
-      if (this.marks[hint.cell] === QUEEN) this.queenActions++;
+      const wasQueen = this.marks[hint.cell] === QUEEN;
+      if (wasQueen) this.queenActions++;
       this.marks[hint.cell] = EMPTY;
+      this.autoCells[hint.cell] = false;
+      if (wasQueen) this.withdrawAutoX();
       this.activeHint = null;
       this.afterChange();
       return;
     }
     const step = hint.step;
     const hasUnitStage = 'unit' in step && step.unit !== undefined;
-    if (stage === 1 && hasUnitStage) {
-      this.activeHint = { hint, stage: 2 };
+    if (stage === 'locate' && hasUnitStage) {
+      this.activeHint = { hint, stage: 'detail' };
       return;
     }
     this.pushUndo();
@@ -445,20 +539,12 @@ export class AppState {
   }
 
   private autoX(queenCell: number): void {
-    const n = this.n;
-    const { regions } = this.game!.puzzle;
-    const r = Math.floor(queenCell / n);
-    const c = queenCell % n;
-    for (let i = 0; i < n * n; i++) {
+    for (let i = 0; i < this.marks.length; i++) {
       if (this.marks[i] !== EMPTY) continue;
-      const ri = Math.floor(i / n);
-      const ci = i % n;
-      const covered =
-        ri === r ||
-        ci === c ||
-        regions[i] === regions[queenCell] ||
-        (Math.abs(ri - r) === 1 && Math.abs(ci - c) === 1);
-      if (covered) this.marks[i] = X;
+      if (this.covers(queenCell, i)) {
+        this.marks[i] = X;
+        this.autoCells[i] = true;
+      }
     }
   }
 
@@ -502,6 +588,7 @@ export class AppState {
       const save: SavedGame = {
         game: $state.snapshot(this.game) as GeneratedPuzzle,
         marks: $state.snapshot(this.marks),
+        autoCells: $state.snapshot(this.autoCells),
         elapsed: this.elapsed,
         savedAt: Date.now(),
         mode: this.sessionMode,

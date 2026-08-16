@@ -219,6 +219,13 @@
           <button class="tag slim hint" onclick={() => app.requestHint()} disabled={app.paused || app.solved}>
             Hint
           </button>
+          <button
+            class="tag slim"
+            onclick={() => app.clearBoard()}
+            disabled={app.paused || app.solved || !app.hasMarks}
+          >
+            Clear
+          </button>
         </div>
 
         <div class="board-zone">

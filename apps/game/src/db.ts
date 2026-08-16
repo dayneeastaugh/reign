@@ -12,6 +12,8 @@ export const DEFAULT_SETTINGS: Settings = { autoX: false, showConflicts: true, s
 export interface SavedGame {
   game: GeneratedPuzzle;
   marks: number[];
+  /** Provenance of auto-placed × marks, so auto-mark stays reversible on resume. */
+  autoCells?: boolean[];
   elapsed: number;
   savedAt: number;
   mode?: 'quick' | 'tournament';

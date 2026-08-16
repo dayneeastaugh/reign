@@ -40,39 +40,70 @@
     Math.max(24, Math.floor((Math.min(viewportW * 0.92, 480) - FRAME) / n)),
   );
 
+  /**
+   * Tap vs drag. A tap must not paint: strokes only begin once the pointer has
+   * travelled past DRAG_SLOP from where it went down, so finger jitter across a
+   * cell border can no longer mark neighbouring cells. The gesture is tracked by
+   * pointerId and released on the window, so lifting off the board still ends it,
+   * and the click-suppression flag is cleared at the start of every gesture so it
+   * can never leak into the next tap.
+   */
+  const DRAG_SLOP = 10;
+
+  let activePointer: number | null = null;
   let pointerDownCell = -1;
+  let downX = 0;
+  let downY = 0;
   let stroking = false;
   let suppressClick = false;
 
   function cellAt(x: number, y: number): number {
     const el = document.elementFromPoint(x, y)?.closest('.cell');
-    if (!el) return -1;
-    const idx = (el as HTMLElement).dataset.i;
-    return idx === undefined ? -1 : Number(idx);
+    if (!el || !(el as HTMLElement).dataset.i) return -1;
+    const idx = Number((el as HTMLElement).dataset.i);
+    return Number.isInteger(idx) && idx >= 0 && idx < n * n ? idx : -1;
   }
 
-  function handlePointerDown(e: PointerEvent, i: number) {
-    pointerDownCell = i;
+  function endGesture() {
+    activePointer = null;
+    pointerDownCell = -1;
     stroking = false;
+  }
+
+  $effect(() => {
+    const up = (e: PointerEvent) => {
+      if (activePointer === null || e.pointerId === activePointer) endGesture();
+    };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  });
+
+  function handlePointerDown(e: PointerEvent, i: number) {
+    if (activePointer !== null) return;
+    activePointer = e.pointerId;
+    pointerDownCell = i;
+    downX = e.clientX;
+    downY = e.clientY;
+    stroking = false;
+    suppressClick = false;
     (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
   }
 
   function handlePointerMove(e: PointerEvent) {
-    if (pointerDownCell < 0) return;
-    const over = cellAt(e.clientX, e.clientY);
-    if (over < 0 || over === pointerDownCell) return;
+    if (pointerDownCell < 0 || e.pointerId !== activePointer) return;
     if (!stroking) {
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) < DRAG_SLOP) return;
       stroking = true;
       suppressClick = true;
       onBeginPaint();
       onPaint(pointerDownCell);
     }
-    onPaint(over);
-  }
-
-  function handlePointerUp() {
-    pointerDownCell = -1;
-    stroking = false;
+    const over = cellAt(e.clientX, e.clientY);
+    if (over >= 0) onPaint(over);
   }
 
   function handleClick(i: number) {
@@ -114,8 +145,6 @@
   role="grid"
   aria-label="Puzzle board"
   onpointermove={handlePointerMove}
-  onpointerup={handlePointerUp}
-  onpointercancel={handlePointerUp}
 >
   {#each marks as m, i (i)}
     <button
