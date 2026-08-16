@@ -7,6 +7,15 @@ const TIER_FOR: Record<Difficulty, number> = { easy: 1, medium: 2, hard: 3 };
 const SIZES: Record<Difficulty, number[]> = { easy: [7, 8], medium: [9], hard: [10, 11] };
 const MAX_ATTEMPTS = 8000;
 
+/**
+ * Smallest allowed region. A one-cell region hands the player a queen for free
+ * and a two-cell region nearly does, which cheapens a board however hard its
+ * remaining deductions are — so medium and hard demand roomier regions. Easy is
+ * left unconstrained on purpose: a tier-1 board is solvable by forced placements
+ * alone, and a small region is exactly the gentle foothold that makes one.
+ */
+const MIN_REGION: Record<Difficulty, number> = { easy: 1, medium: 3, hard: 3 };
+
 const ORTHO = [
   [1, 0],
   [-1, 0],
@@ -34,7 +43,19 @@ function randomQueens(size: number, rnd: Rng): number[] | null {
   return bt(0) ? cols : null;
 }
 
-/** Grow regions outward from each queen with a randomized flood fill; always contiguous. */
+export function regionSizes(size: number, regions: number[]): number[] {
+  const counts = new Array<number>(size).fill(0);
+  for (const g of regions) counts[g]++;
+  return counts;
+}
+
+/**
+ * Grow regions outward from each queen with a randomized flood fill; always
+ * contiguous. Growth is deliberately left uneven — irregular, interlocking
+ * shapes are what make the harder deductions possible, and evening the regions
+ * out here starves the supply of tier-3 boards. Sizes are corrected afterwards
+ * by rebalanceRegions instead.
+ */
 function growRegions(size: number, queenCols: number[], rnd: Rng): number[] {
   const regions = new Array<number>(size * size).fill(-1);
   for (let r = 0; r < size; r++) regions[r * size + queenCols[r]] = r;
@@ -124,11 +145,18 @@ function regionStillContiguous(size: number, regions: number[], g: number): bool
  * are never touched — stays valid. Contiguity is preserved by construction for
  * the growing region and re-checked for the shrinking one.
  */
-function repairToUnique(size: number, regions: number[], target: number[], rnd: Rng): boolean {
+function repairToUnique(
+  size: number,
+  regions: number[],
+  target: number[],
+  rnd: Rng,
+  minRegion: number,
+): boolean {
   const maxRepairs = 3 * size;
   for (let k = 0; k < maxRepairs; k++) {
     const alt = findAltSolution(size, regions, target);
     if (!alt) return true;
+    const counts = regionSizes(size, regions);
     const rows = shuffle(
       Array.from({ length: size }, (_, r) => r).filter((r) => alt[r] !== target[r]),
       rnd,
@@ -137,6 +165,9 @@ function repairToUnique(size: number, regions: number[], target: number[], rnd: 
     for (const r of rows) {
       const b = r * size + alt[r];
       const gOld = regions[b];
+      // Prefer not to starve a region, but never block a repair over it —
+      // rebalanceRegions restores the floor afterwards.
+      if (counts[gOld] - 1 < minRegion && rows.length > 1) continue;
       const neighbors = new Set<number>();
       const rr = Math.floor(b / size);
       const cc = b % size;
@@ -163,6 +194,57 @@ function repairToUnique(size: number, regions: number[], target: number[], rnd: 
 }
 
 /**
+ * Repair leaves regions uneven, and a starved region gives its queen away. Feed
+ * cells back from roomy neighbours until every region meets the floor, keeping
+ * both contiguity and the single solution — far cheaper than discarding an
+ * otherwise good board and starting over.
+ */
+function rebalanceRegions(
+  size: number,
+  regions: number[],
+  minRegion: number,
+  rnd: Rng,
+): boolean {
+  for (let guard = 0; guard < 4 * size; guard++) {
+    const counts = regionSizes(size, regions);
+    const starved = counts.findIndex((c) => c < minRegion);
+    if (starved < 0) return true;
+
+    // Cells bordering the starved region that their own region can spare.
+    const donors: number[] = [];
+    for (let i = 0; i < size * size; i++) {
+      const g = regions[i];
+      if (g === starved || counts[g] - 1 < minRegion) continue;
+      const r = Math.floor(i / size);
+      const c = i % size;
+      const touches = ORTHO.some(([dr, dc]) => {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr < 0 || nr >= size || nc < 0 || nc >= size) return false;
+        return regions[nr * size + nc] === starved;
+      });
+      if (touches) donors.push(i);
+    }
+
+    let moved = false;
+    for (const cell of shuffle(donors, rnd)) {
+      const from = regions[cell];
+      regions[cell] = starved;
+      if (
+        regionStillContiguous(size, regions, from) &&
+        countSolutions({ size, regions }, 2) === 1
+      ) {
+        moved = true;
+        break;
+      }
+      regions[cell] = from;
+    }
+    if (!moved) return false;
+  }
+  return regionSizes(size, regions).every((c) => c >= minRegion);
+}
+
+/**
  * Generate a puzzle with exactly one solution, solvable by logic alone, whose
  * required technique tier matches the requested difficulty. Deterministic per seed.
  */
@@ -174,8 +256,10 @@ export function generatePuzzle(opts: { difficulty: Difficulty; seed: number }): 
     const size = sizes[randInt(rnd, sizes.length)];
     const solution = randomQueens(size, rnd);
     if (!solution) continue;
+    const minRegion = MIN_REGION[difficulty];
     const regions = growRegions(size, solution, rnd);
-    if (!repairToUnique(size, regions, solution, rnd)) continue;
+    if (!repairToUnique(size, regions, solution, rnd, minRegion)) continue;
+    if (!rebalanceRegions(size, regions, minRegion, rnd)) continue;
     const puzzle: Puzzle = { size, regions };
     if (countSolutions(puzzle, 2) !== 1) continue;
     const res = solveLogically(puzzle);

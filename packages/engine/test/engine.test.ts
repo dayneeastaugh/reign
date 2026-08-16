@@ -94,6 +94,23 @@ describe('property sweep', () => {
   }
 });
 
+describe('region quality', () => {
+  const floors: Array<[Difficulty, number]> = [
+    ['medium', 3],
+    ['hard', 3],
+  ];
+  for (const [difficulty, floor] of floors) {
+    it(`never generates a ${difficulty} region smaller than ${floor} cells`, () => {
+      for (let seed = 4000; seed < 4006; seed++) {
+        const g = generatePuzzle({ difficulty, seed });
+        const counts = new Array<number>(g.puzzle.size).fill(0);
+        for (const region of g.puzzle.regions) counts[region]++;
+        expect(Math.min(...counts), `seed ${seed} smallest region`).toBeGreaterThanOrEqual(floor);
+      }
+    });
+  }
+});
+
 describe('hints', () => {
   it('flags a wrong queen before anything else', () => {
     const g = generatePuzzle({ difficulty: 'easy', seed: 3 });
