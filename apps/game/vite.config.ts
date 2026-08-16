@@ -3,6 +3,9 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  // Served from a GitHub Pages project path. Relative start_url/scope below
+  // resolve against this, so the service worker registers under it correctly.
+  base: process.env.REIGN_BASE ?? '/reign/',
   plugins: [
     svelte(),
     VitePWA({
