@@ -216,7 +216,12 @@
           >
             Undo
           </button>
-          <button class="tag slim hint" onclick={() => app.requestHint()} disabled={app.paused || app.solved}>
+          <button
+            class="tag slim hint"
+            class:open={!!app.activeHint}
+            onclick={() => app.requestHint()}
+            disabled={app.paused || app.solved}
+          >
             Hint
           </button>
           <button
@@ -274,7 +279,19 @@
             {/if}
           </div>
         {:else if app.activeHint}
-          <p class="hint-line hint-message">{app.hintText}</p>
+          <div class="hint-message">
+            <p class="hint-text">{app.hintText}</p>
+            {#if app.hintProgress}
+              <span
+                class="pips"
+                aria-label={`Hint depth ${app.hintProgress.step} of ${app.hintProgress.total}`}
+              >
+                {#each { length: app.hintProgress.total } as _, i (i)}
+                  <span class="pip" class:filled={i < app.hintProgress.step}></span>
+                {/each}
+              </span>
+            {/if}
+          </div>
         {:else}
           <p class="hint-line">
             Place one ♛ per row, column, and colour region. ♛ cannot touch, even diagonally.
@@ -647,12 +664,47 @@
   }
 
   .hint-message {
-    color: var(--ink);
-    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    max-width: 340px;
     border: 1.5px dashed var(--gold);
     border-radius: 10px;
-    padding: 8px 14px;
+    padding: 9px 14px 8px;
     background: var(--paper-raised);
+  }
+
+  .hint-text {
+    margin: 0;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  /* Depth pips: how far into this hint the player has chosen to go. */
+  .pips {
+    display: flex;
+    gap: 5px;
+  }
+
+  .pip {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    opacity: 0.5;
+    transition: opacity 200ms ease, background 200ms ease;
+  }
+
+  .pip.filled {
+    background: var(--gold);
+    opacity: 1;
+  }
+
+  .tag.hint.open {
+    background: color-mix(in srgb, var(--gold) 22%, transparent);
   }
 
   .solved {

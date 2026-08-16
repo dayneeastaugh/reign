@@ -55,6 +55,8 @@ const REGION_NAMES = [
 export interface ActiveHint {
   hint: Hint;
   stage: 'verdict' | 'locate' | 'detail';
+  /** Whether this session opened with a verdict, so depth pips stay stable. */
+  hadVerdict: boolean;
 }
 
 interface UndoEntry {
@@ -489,20 +491,34 @@ export class AppState {
     }
   });
 
+  /** How deep the player is in the current hint, for the depth pips. */
+  hintProgress = $derived.by(() => {
+    const a = this.activeHint;
+    if (!a) return null;
+    const hasDetail =
+      a.hint.kind === 'step' && 'unit' in a.hint.step && a.hint.step.unit !== undefined;
+    const total = (a.hadVerdict ? 1 : 0) + 1 + (hasDetail ? 1 : 0);
+    const order: ActiveHint['stage'][] = ['verdict', 'locate', 'detail'];
+    const step = order.indexOf(a.stage) + (a.hadVerdict ? 1 : 0);
+    return { step: Math.max(1, step), total };
+  });
+
   requestHint(): void {
     if (!this.game || this.solved || this.paused) return;
     const active = this.activeHint;
     if (!active) {
-      this.hintsUsed++;
       const hint = nextHint(this.game, $state.snapshot(this.marks));
       // With nothing placed there is nothing to vouch for, so skip the verdict.
       const anyQueens = this.queenCells.length > 0;
-      this.activeHint = { hint, stage: anyQueens ? 'verdict' : 'locate' };
+      // Checking your own ♛ is free; only revealing counts against the score.
+      if (!anyQueens) this.hintsUsed++;
+      this.activeHint = { hint, stage: anyQueens ? 'verdict' : 'locate', hadVerdict: anyQueens };
       return;
     }
     const { hint, stage } = active;
     if (stage === 'verdict') {
-      this.activeHint = { hint, stage: 'locate' };
+      this.hintsUsed++;
+      this.activeHint = { ...active, stage: 'locate' };
       return;
     }
     if (hint.kind === 'complete') {
@@ -523,7 +539,7 @@ export class AppState {
     const step = hint.step;
     const hasUnitStage = 'unit' in step && step.unit !== undefined;
     if (stage === 'locate' && hasUnitStage) {
-      this.activeHint = { hint, stage: 'detail' };
+      this.activeHint = { ...active, stage: 'detail' };
       return;
     }
     this.pushUndo();
