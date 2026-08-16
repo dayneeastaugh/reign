@@ -3,6 +3,7 @@
   import Board from './Board.svelte';
   import QuestMap from './QuestMap.svelte';
   import { app, orbit } from './state.svelte';
+  import { pwa } from './pwa.svelte';
   import orreryArt from '../../../content/assets/grand-orbit/orrery.jpg';
 
   let fileInput: HTMLInputElement;
@@ -23,6 +24,7 @@
 
   onMount(() => {
     void app.init();
+    void pwa.init();
   });
 
   $effect(() => {
@@ -322,6 +324,16 @@
     {/if}
   </main>
 
+  {#if pwa.updateReady}
+    <div class="notice" role="status">
+      <span>A new edition of Reign is ready.</span>
+      <div class="notice-actions">
+        <button class="tag slim" onclick={() => pwa.dismissUpdate()}>Later</button>
+        <button class="tag slim primary" onclick={() => pwa.applyUpdateNow()}>Reload</button>
+      </div>
+    </div>
+  {/if}
+
   <nav class="bottomnav">
     <button class="navitem" class:on={app.view === 'quick'} onclick={() => app.goQuick()}>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7">
@@ -348,6 +360,24 @@
     </button>
   </nav>
 </div>
+
+{#if pwa.showInstallHint}
+  <div class="sheet-scrim">
+    <div class="install-card">
+      <span class="install-mark">♛</span>
+      <h2>Install Reign</h2>
+      <p class="rule centered">
+        Add Reign to your home screen and it plays offline, keeps your progress, and opens
+        without the browser bars.
+      </p>
+      <ol class="steps">
+        <li><span class="step-n">1</span> Tap the Share icon in Safari</li>
+        <li><span class="step-n">2</span> Choose “Add to Home Screen”</li>
+      </ol>
+      <button class="tag" onclick={() => pwa.dismissInstallHint()}>Maybe later</button>
+    </div>
+  </div>
+{/if}
 
 <style>
   /* App shell: fixed viewport height so inner regions scroll, not the page. */
@@ -929,6 +959,94 @@
     border: 1px solid #c9b18a;
     border-radius: 6px;
     padding: 4px 12px;
+  }
+
+  .notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--paper-raised);
+    border-top: 1px solid var(--ink-faint);
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+
+  .notice-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(63, 58, 51, 0.45);
+    backdrop-filter: blur(3px);
+  }
+
+  .install-card {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 26px 22px 22px;
+    border-radius: 18px;
+    background: var(--paper);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+  }
+
+  .install-mark {
+    width: 54px;
+    height: 54px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    font-size: 26px;
+    color: var(--ink);
+    background: var(--paper-raised);
+    border: 1px solid var(--ink-faint);
+  }
+
+  .steps {
+    list-style: none;
+    margin: 4px 0 6px;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .steps li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--paper-raised);
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+
+  .step-n {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .bottomnav {
