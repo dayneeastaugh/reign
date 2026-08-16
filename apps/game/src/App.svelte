@@ -7,6 +7,19 @@
 
   let fileInput: HTMLInputElement;
   let confirmReset = $state(false);
+  let codeCopied = $state(false);
+
+  /** The board code reproduces a layout exactly, so it doubles as a bug report. */
+  async function copyBoardCode() {
+    if (!app.game) return;
+    try {
+      await navigator.clipboard.writeText(app.game.id);
+      codeCopied = true;
+      setTimeout(() => (codeCopied = false), 1600);
+    } catch {
+      codeCopied = false;
+    }
+  }
 
   onMount(() => {
     void app.init();
@@ -297,6 +310,14 @@
             Place one ♛ per row, column, and colour region. ♛ cannot touch, even diagonally.
           </p>
         {/if}
+
+        <button
+          class="board-code"
+          onclick={copyBoardCode}
+          aria-label={`Board code ${app.game.id}. Tap to copy.`}
+        >
+          {codeCopied ? 'copied' : app.game.id}
+        </button>
       {/if}
     {/if}
   </main>
@@ -705,6 +726,24 @@
 
   .tag.hint.open {
     background: color-mix(in srgb, var(--gold) 22%, transparent);
+  }
+
+  /* Quiet enough to ignore, precise enough to reproduce a board from. */
+  .board-code {
+    margin-top: auto;
+    padding: 6px 8px;
+    border: 0;
+    background: transparent;
+    font-family: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    opacity: 0.45;
+    cursor: pointer;
+  }
+
+  .board-code:active {
+    opacity: 0.8;
   }
 
   .solved {

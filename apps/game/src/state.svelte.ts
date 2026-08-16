@@ -220,7 +220,8 @@ export class AppState {
       solution: level.solution,
       difficulty: level.difficulty,
       seed: level.seed ?? 0,
-      id: `${orbit.id}-${idx}`,
+      // 1-based so a reported code matches the level number the player sees.
+      id: `${orbit.id}-L${idx + 1}`,
     };
     this.marks = new Array(level.size * level.size).fill(EMPTY);
     this.autoCells = new Array(level.size * level.size).fill(false);
