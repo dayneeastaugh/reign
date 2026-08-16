@@ -1,0 +1,59 @@
+:root {
+  --paper: #f6f1e7;
+  --paper-raised: #fdfaf3;
+  --ink: #3f3a33;
+  --ink-soft: #6e675c;
+  --ink-faint: rgba(63, 58, 51, 0.22);
+  --gold: #a8813f;
+  --danger: #a8402f;
+  --ok: #4a7c46;
+  --font-serif: 'Iowan Old Style', 'Palatino', Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+.tag {
+  border: 1.5px dashed var(--ink);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  padding: 7px 15px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tag:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tag.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-style: solid;
+}
+
+.tag.primary {
+  background: var(--gold);
+  border: 1.5px solid var(--gold);
+  color: #2f2410;
+}
