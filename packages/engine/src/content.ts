@@ -83,6 +83,13 @@ export interface StarRuleDef {
   two: number;
 }
 
+/** Stars for a given overhead over par. */
+export function starsForOverhead(rule: StarRuleDef, overhead: number): 1 | 2 | 3 {
+  if (overhead <= rule.three) return 3;
+  if (overhead <= rule.two) return 2;
+  return 1;
+}
+
 /** Stars earned for a completed level under a star rule. */
 export function scoreStars(
   rule: StarRuleDef,
@@ -90,10 +97,22 @@ export function scoreStars(
   hintsUsed: number,
   size: number,
 ): 1 | 2 | 3 {
-  const overhead = queenActions + hintsUsed - size;
-  if (overhead <= rule.three) return 3;
-  if (overhead <= rule.two) return 2;
-  return 1;
+  return starsForOverhead(rule, queenActions + hintsUsed - size);
+}
+
+/**
+ * The least overhead still reachable from a position mid-solve — every queen
+ * yet to be placed costs at least one more move. Placing a queen leaves this
+ * unchanged, removing one costs two, and a hint costs one, so it never falls:
+ * a rating shown from it can only slip, never quietly improve. On a solved
+ * board every queen is placed, so it equals the final overhead exactly.
+ */
+export function overheadFloor(
+  queenActions: number,
+  hintsUsed: number,
+  queensPlaced: number,
+): number {
+  return queenActions + hintsUsed - queensPlaced;
 }
 
 export interface TournamentDef {

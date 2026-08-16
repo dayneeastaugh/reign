@@ -188,6 +188,7 @@
 
   .queen {
     font-size: clamp(16px, 4.6vw, 26px);
+    text-shadow: 0 1px 3px var(--x-halo);
     color: var(--queen-color);
     line-height: 1;
     animation: stamp 160ms cubic-bezier(0.2, 1.4, 0.4, 1);
@@ -218,10 +219,15 @@
   }
 
   .x {
-    font-size: clamp(12px, 3.2vw, 17px);
+    font-size: clamp(14px, 3.7vw, 19px);
+    font-weight: 700;
     color: var(--x-color);
     line-height: 1;
     pointer-events: none;
+    text-shadow:
+      0 0 2px var(--x-halo),
+      0 1px 2px var(--x-halo),
+      0 -1px 2px var(--x-halo);
   }
 
   @keyframes stamp {

@@ -5,6 +5,9 @@ import {
   solveLogically,
   difficultyForTier,
   nextHint,
+  scoreStars,
+  starsForOverhead,
+  overheadFloor,
   validateSolution,
   regionsContiguous,
   EMPTY,
@@ -109,6 +112,50 @@ describe('region quality', () => {
       }
     });
   }
+});
+
+describe('live star rating', () => {
+  const rule = { metric: 'moves', three: 1, two: 6 } as const;
+
+  it('starts at three stars on an untouched board', () => {
+    expect(starsForOverhead(rule, overheadFloor(0, 0, 0))).toBe(3);
+  });
+
+  it('never improves as the player acts', () => {
+    // Walk a plausible session: placements, a removal, a hint, more placements.
+    const actions: Array<'place' | 'remove' | 'hint'> = [
+      'place', 'place', 'hint', 'place', 'remove', 'place', 'place', 'remove', 'hint', 'place',
+    ];
+    let queenActions = 0;
+    let hintsUsed = 0;
+    let placed = 0;
+    let previous = starsForOverhead(rule, overheadFloor(0, 0, 0));
+    for (const action of actions) {
+      if (action === 'place') {
+        queenActions++;
+        placed++;
+      } else if (action === 'remove') {
+        queenActions++;
+        placed--;
+      } else {
+        hintsUsed++;
+      }
+      const now = starsForOverhead(rule, overheadFloor(queenActions, hintsUsed, placed));
+      expect(now, `after ${action}`).toBeLessThanOrEqual(previous);
+      previous = now;
+    }
+  });
+
+  it('equals the recorded score once the board is solved', () => {
+    for (const size of [7, 9, 11]) {
+      for (const [queenActions, hintsUsed] of [[size, 0], [size + 3, 1], [size + 9, 4]]) {
+        const live = starsForOverhead(rule, overheadFloor(queenActions, hintsUsed, size));
+        expect(live, `size ${size}, ${queenActions} actions`).toBe(
+          scoreStars(rule, queenActions, hintsUsed, size),
+        );
+      }
+    }
+  });
 });
 
 describe('hints', () => {

@@ -2,6 +2,8 @@ import {
   generatePuzzle,
   nextHint,
   scoreStars,
+  starsForOverhead,
+  overheadFloor,
   EMPTY,
   X,
   QUEEN,
@@ -297,6 +299,20 @@ export class AppState {
     this.view = 'orbitPlay';
     this.persistSoon();
   }
+
+  /**
+   * Best rating still achievable from the current position. Starts at three and
+   * only ever slips, and once the last queen lands it equals the rating the
+   * level will actually record — so the row on screen is never a surprise.
+   */
+  liveStars = $derived.by(() => {
+    const rule = this.quest?.setup.stars;
+    if (!rule || this.sessionMode !== 'tournament' || !this.game) return null;
+    return starsForOverhead(
+      rule,
+      overheadFloor(this.queenActions, this.hintsUsed, this.queenCells.length),
+    );
+  });
 
   starsFor(levelIdx: number): number {
     return this.orbitProgress.stars[levelIdx] ?? 0;

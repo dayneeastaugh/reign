@@ -46,7 +46,7 @@
       `--ink-soft:${v.chromeSoft};--ink-faint:${v.chromeSoft}55;` +
       `--paper-raised:rgba(255,255,255,0.06);--board-line:${v.boardLine};` +
       `--board-line-soft:${v.chromeSoft}44;--queen-color:${v.queenColor};` +
-      `--x-color:${v.xColor};${regions}`
+      `--x-color:${v.xColor};--x-halo:${v.boardLine};${regions}`
     );
   });
 
@@ -242,6 +242,17 @@
             {app.paused ? '▶' : '❙❙'}
           </button>
           <span class="time" class:dim={app.paused}>{timeLabel}</span>
+          {#if app.liveStars !== null && !app.solved}
+            <span
+              class="stars live"
+              aria-label={`${app.liveStars} of 3 stars still available`}
+              title="Stars still within reach"
+            >
+              {#each [0, 1, 2] as s (s)}
+                <span class="star" class:filled={s < app.liveStars}>★</span>
+              {/each}
+            </span>
+          {/if}
           <button
             class="tag slim"
             onclick={() => app.undo()}
@@ -705,6 +716,12 @@
   .stars.big .star {
     font-size: 26px;
     animation: stamp 300ms cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+
+  /* Live rating in the status bar: fades as a star slips out of reach. */
+  .stars.live .star {
+    font-size: 15px;
+    transition: color 500ms ease, -webkit-text-stroke-color 500ms ease;
   }
 
   .board-zone {

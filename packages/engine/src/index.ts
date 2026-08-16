@@ -9,6 +9,8 @@ export {
   CONTENT_SCHEMA_VERSION,
   validateTournament,
   scoreStars,
+  starsForOverhead,
+  overheadFloor,
   type StarRuleDef,
   type MapThemeDef,
   type PlayfieldVariantDef,
