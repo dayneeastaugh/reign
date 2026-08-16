@@ -6,6 +6,19 @@ export { solveLogically, difficultyForTier, type LogicResult, type SolveOptions 
 export { generatePuzzle } from './generate';
 export { nextHint } from './hints';
 export {
+  checkPalette,
+  requiredDelta,
+  deltaE2000,
+  contrastRatio,
+  parseColor,
+  simulate,
+  VISIONS,
+  DEFAULT_LIMITS,
+  type Vision,
+  type PaletteInput,
+  type PaletteLimits,
+} from './palette';
+export {
   CONTENT_SCHEMA_VERSION,
   validateTournament,
   scoreStars,

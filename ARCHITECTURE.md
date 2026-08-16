@@ -224,7 +224,15 @@ cabinet. Working name and details refinable in content, not code.
   completion-only — stars are recognition, never a gate.
 - Mistake policy: live conflict highlighting by default, "purist mode" toggle to disable.
 - QoL: undo stack, drag-to-mark X's, optional auto-X on queen placement, timer with pause.
-- Accessibility: CVD-tested palettes plus optional per-region pattern overlay;
+- Accessibility: palettes are machine-checked, not eyeballed. The content
+  validator measures every region pair with CIEDE2000 under normal vision and
+  simulated protanopia, deuteranopia and tritanopia, at each board size the
+  variant is used at, and also checks glyph-on-halo and board-line contrast.
+  Thresholds (ΔE ≥ 9 up to nine regions, ≥ 7 beyond) are empirical: the highest
+  bar muted palettes can actually clear, found by searching the palette space.
+  Palettes are built by farthest-point search varying lightness as well as hue,
+  because hue is the channel colour blindness removes. A per-region pattern
+  overlay remains the outstanding work for full safety on 10-11 region boards.
   ≥44px touch targets.
 
 ## Testing

@@ -17,11 +17,22 @@ const SPECIALS = [7, 15, 23, 31, 39];
 const LEVEL_COUNT = 50;
 const FINAL = LEVEL_COUNT - 1;
 
-/** 11 spread hues so every board size up to 11 gets distinct region colours. */
-const HUES = [215, 315, 160, 45, 265, 195, 20, 95, 350, 235, 285];
+import { buildPalette } from './palette-builder';
 
-function makePalette(shift: number, sat: number, light: number): string[] {
-  return HUES.map((h, i) => `hsl(${(h + shift + 360) % 360} ${sat}% ${light + (i % 2 ? 5 : -2)}%)`);
+const HUES = [215, 315, 160, 45, 265, 195, 20, 95, 350, 235, 285, 120, 60, 175, 300];
+
+/**
+ * Spreading hue alone is not enough — hue is the channel colour blindness
+ * removes, so palettes must vary lightness too. buildPalette searches for a set
+ * that stays apart under simulated colour blindness, and the content validator
+ * rejects any that does not.
+ */
+function makePalette(shift: number, satFrom: number, satTo: number, lightFrom: number, lightTo: number): string[] {
+  return buildPalette(11, {
+    hues: HUES.map((h) => (h + shift + 360) % 360),
+    satRange: [satFrom, satTo],
+    lightRange: [lightFrom, lightTo],
+  });
 }
 
 const gold = '#e3c27c';
@@ -32,7 +43,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
     id: 'dusk',
     background: 'linear-gradient(#141b30, #1c2444)',
     boardLine: '#0b0e15',
-    regionPalette: makePalette(0, 24, 40),
+    regionPalette: makePalette(0, 16, 40, 44, 74),
     queenGlyph: '✦',
     queenColor: gold,
     xColor: '#a8b0c8',
@@ -42,7 +53,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
     id: 'rust',
     background: 'linear-gradient(#221128, #2c1a22)',
     boardLine: '#170d12',
-    regionPalette: makePalette(-12, 30, 40),
+    regionPalette: makePalette(-12, 20, 44, 46, 76),
     queenGlyph: '✦',
     queenColor: '#f0c987',
     xColor: '#c0a8a8',
@@ -52,7 +63,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
     id: 'ice',
     background: 'linear-gradient(#0e1c28, #14283a)',
     boardLine: '#0a1420',
-    regionPalette: makePalette(15, 22, 46),
+    regionPalette: makePalette(15, 14, 38, 44, 78),
     queenGlyph: '❅',
     queenColor: '#dff0f8',
     xColor: '#9db8c8',
@@ -62,7 +73,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
     id: 'violet',
     background: 'linear-gradient(#191228, #241a34)',
     boardLine: '#120a1c',
-    regionPalette: makePalette(40, 22, 42),
+    regionPalette: makePalette(40, 16, 40, 44, 76),
     queenGlyph: '✦',
     queenColor: gold,
     xColor: '#b0a8c8',
@@ -72,7 +83,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
     id: 'ember',
     background: 'linear-gradient(#241016, #2c1414)',
     boardLine: '#180b0e',
-    regionPalette: makePalette(-20, 28, 38),
+    regionPalette: makePalette(-20, 20, 44, 44, 74),
     queenGlyph: '✦',
     queenColor: gold,
     xColor: '#c8a8a0',
@@ -82,7 +93,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
     id: 'station',
     background: '#131c2c',
     boardLine: '#0a0e18',
-    regionPalette: makePalette(5, 14, 41),
+    regionPalette: makePalette(0, 10, 32, 44, 76),
     queenGlyph: '⚙',
     queenColor: gold,
     xColor: '#9aa3bd',

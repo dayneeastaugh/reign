@@ -9,18 +9,20 @@
   --gold: #a8813f;
   --gold-deep: #8a6a2f;
 
-  /* Region palette: muted, warm, mutually distinguishable. Cycled by region id. */
-  --region-1: #d8a79a;
-  --region-2: #a9b494;
-  --region-3: #d9b97e;
-  --region-4: #9db0c4;
-  --region-5: #b39ab0;
-  --region-6: #cd8f6e;
-  --region-7: #93b8a5;
-  --region-8: #b3b072;
-  --region-9: #a08cbf;
-  --region-10: #e2cfa8;
-  --region-11: #6f8fae;
+  /* Region palette, chosen by search and gated by the content validator: every
+     pair stays distinguishable at each board size, including under simulated
+     colour blindness. Ordered so smaller boards use the best-separated colours. */
+  --region-1: #e9d1c9;
+  --region-2: #678cc1;
+  --region-3: #c17d67;
+  --region-4: #b3c6e0;
+  --region-5: #c1d18f;
+  --region-6: #bea2ab;
+  --region-7: #e8e1ea;
+  --region-8: #9eb290;
+  --region-9: #a7818d;
+  --region-10: #67aac1;
+  --region-11: #67c167;
 
   /* Playfield tokens — overridden per tournament variant via inline vars. */
   --board-line: #3f3a33;
