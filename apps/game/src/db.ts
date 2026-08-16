@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Difficulty, GeneratedPuzzle } from '@reign/engine';
+import type { Difficulty, GeneratedPuzzle, TournamentDef } from '@reign/engine';
 
 export interface Settings {
   autoX: boolean;
@@ -37,13 +37,17 @@ interface ReignDB extends DBSchema {
     value: GameResult;
     indexes: { 'by-finishedAt': number };
   };
+  quests: { key: string; value: TournamentDef };
 }
 
 /**
  * Schema is versioned from day one: every future change bumps DB_VERSION and
  * adds a migration branch in upgrade(). History must survive app updates.
+ *
+ * v1 — kv + results
+ * v2 — quests, so content lives in the database rather than the app bundle
  */
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<ReignDB>> | null = null;
 
@@ -54,6 +58,9 @@ function db(): Promise<IDBPDatabase<ReignDB>> {
         d.createObjectStore('kv');
         const results = d.createObjectStore('results', { autoIncrement: true });
         results.createIndex('by-finishedAt', 'finishedAt');
+      }
+      if (oldVersion < 2) {
+        d.createObjectStore('quests');
       }
     },
   });
@@ -78,6 +85,14 @@ export async function addResult(result: GameResult): Promise<void> {
 
 export async function allResults(): Promise<GameResult[]> {
   return (await db()).getAll('results');
+}
+
+export async function getQuests(): Promise<TournamentDef[]> {
+  return (await db()).getAll('quests');
+}
+
+export async function putQuest(quest: TournamentDef): Promise<void> {
+  await (await db()).put('quests', quest, quest.id);
 }
 
 interface Backup {

@@ -139,8 +139,8 @@ const tournament: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'grand-orbit',
   name: 'The Grand Orbit',
-  version: 1,
-  goal: 'Build the orrery',
+  version: 2,
+  goal: 'Assemble the brass orrery',
   setup: {
     levelCount: LEVEL_COUNT,
     specialLevels: SPECIALS,

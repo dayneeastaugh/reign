@@ -2,9 +2,9 @@
   import { onMount } from 'svelte';
   import Board from './Board.svelte';
   import QuestMap from './QuestMap.svelte';
-  import { app, orbit } from './state.svelte';
+  import { app } from './state.svelte';
+  import { contentUrl } from './content';
   import { pwa } from './pwa.svelte';
-  import orreryArt from '../../../content/assets/grand-orbit/orrery.jpg';
 
   let fileInput: HTMLInputElement;
   let confirmReset = $state(false);
@@ -55,7 +55,7 @@
       case 'quick':
         return 'Quick play';
       case 'orbitHome':
-        return orbit.name;
+        return quest?.name ?? 'Quest';
       case 'orbitPlay':
         return `Level ${app.levelIndex + 1}`;
       case 'cabinet':
@@ -65,6 +65,7 @@
     }
   });
 
+  const quest = $derived(app.quest);
   const doneSet = $derived(new Set(app.orbitProgress.completed));
   const orbitDone = $derived(app.orbitProgress.completed.length);
 
@@ -140,21 +141,22 @@
         <p class="colophon">Reign · v0.1 · pressed and bound at home</p>
       </section>
     {:else if app.view === 'cabinet'}
+      {#if quest}
       <p class="rule centered">One keepsake per completed quest</p>
 
       <div class="shelf-row">
         <figure class="keepsake" class:locked={!app.orbitComplete}>
           <div class="keepsake-frame">
-            <img src={orreryArt} alt={orbit.collectible.name} />
+            <img src={contentUrl(quest.collectible.art ?? '')} alt={quest.collectible.name} />
             {#if !app.orbitComplete}
               <div class="keepsake-veil"><span class="veil-mark">?</span></div>
             {/if}
           </div>
           <figcaption>
             {#if app.orbitComplete}
-              {orbit.name} ★
+              {quest.name} ★
             {:else}
-              {orbit.name} · {orbitDone} / {orbit.setup.levelCount}
+              {quest.name} · {orbitDone} / {quest.setup.levelCount}
             {/if}
           </figcaption>
         </figure>
@@ -165,21 +167,36 @@
         <span class="plaque">★ {app.totalStars} stars</span>
         <span class="plaque">{orbitDone} levels cleared</span>
       </div>
+      {/if}
     {:else if app.view === 'orbitHome'}
+      {#if quest}
       <div class="quest-hud">
-        <p class="goal">{orbit.goal} · {orbitDone} / {orbit.setup.levelCount}</p>
+        {#if app.quests.length > 1}
+          <div class="quest-picker">
+            {#each app.quests as q (q.id)}
+              <button
+                class="tag slim"
+                class:active={q.id === quest.id}
+                onclick={() => app.selectQuest(q.id)}
+              >
+                {q.name}{app.questNews.includes(q.id) ? ' •' : ''}
+              </button>
+            {/each}
+          </div>
+        {/if}
+        <p class="goal">{quest.goal} · {orbitDone} / {quest.setup.levelCount}</p>
         <div class="parts">
-          {#each orbit.collectible.partGlyphs as glyph, p (p)}
+          {#each quest.collectible.partGlyphs as glyph, p (p)}
             <span class="part" class:earned={app.partsEarned.has(p)}>{glyph}</span>
           {/each}
         </div>
       </div>
 
-      {#if orbit.theme.map}
+      {#if quest.theme.map}
         <QuestMap
-          levels={orbit.levels}
-          map={orbit.theme.map}
-          partGlyphs={orbit.collectible.partGlyphs}
+          levels={quest.levels}
+          map={quest.theme.map}
+          partGlyphs={quest.collectible.partGlyphs}
           {doneSet}
           currentIndex={app.currentOrbitIndex}
           starsFor={(i) => app.starsFor(i)}
@@ -187,14 +204,15 @@
         />
       {/if}
 
-      {#if orbitDone < orbit.setup.levelCount}
+      {#if orbitDone < quest.setup.levelCount}
         <div class="dock">
           <button class="tag primary" onclick={() => app.startOrbitLevel(app.currentOrbitIndex)}>
             {orbitDone === 0 ? 'Launch' : 'Continue'} · Level {app.currentOrbitIndex + 1}
           </button>
         </div>
       {:else}
-        <div class="dock"><span class="tag primary">The orrery is complete ✶</span></div>
+        <div class="dock"><span class="tag primary">{quest.collectible.name} is complete ✶</span></div>
+      {/if}
       {/if}
     {:else}
       {#if app.view === 'orbitPlay' && app.currentLevel}
@@ -277,14 +295,14 @@
             {/if}
             <span class="solved-stamp">
               {#if app.view === 'orbitPlay' && app.currentLevel?.special}
-                Part secured {orbit.collectible.partGlyphs[app.currentLevel.partIndex ?? 0]} · {timeLabel}
+                Part secured {quest?.collectible.partGlyphs[app.currentLevel.partIndex ?? 0] ?? '✦'} · {timeLabel}
               {:else}
                 Solved · {timeLabel}
               {/if}
             </span>
             {#if app.view === 'orbitPlay'}
               <div class="controls">
-                {#if app.levelIndex + 1 < orbit.levels.length}
+                {#if app.levelIndex + 1 < app.questLevels.length}
                   <button class="tag primary" onclick={() => app.nextOrbitLevel()}>Next level</button>
                 {/if}
                 <button class="tag" onclick={() => app.goOrbitHome()}>Map</button>
@@ -472,6 +490,13 @@
     margin: 0;
     font-size: 13.5px;
     color: var(--ink-soft);
+  }
+
+  .quest-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .dock {

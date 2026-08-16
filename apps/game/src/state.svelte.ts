@@ -12,12 +12,11 @@ import {
   type TournamentDef,
   type UnitRef,
 } from '@reign/engine';
-import orbitJson from '../../../content/tournaments/grand-orbit.json';
 import { sound } from './sound';
-
-export const orbit = orbitJson as unknown as TournamentDef;
+import { loadLocalQuests, syncContent } from './content';
 
 export type View = 'quick' | 'orbitHome' | 'orbitPlay' | 'cabinet' | 'settings';
+import { CONTENT_SCHEMA_VERSION } from '@reign/engine';
 import {
   kvGet,
   kvSet,
@@ -91,9 +90,22 @@ export class AppState {
   /** Which × marks were placed by auto-mark, so they can be withdrawn again. */
   autoCells = $state<boolean[]>([]);
 
+  /** Quests held on the device, and which one is being played. */
+  quests = $state<TournamentDef[]>([]);
+  activeQuestId = $state<string | null>(null);
+  /** Ids that arrived or changed on the last content sync. */
+  questNews = $state<string[]>([]);
+
   private undoStack: UndoEntry[] = [];
   private resultRecorded = false;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  quest = $derived.by((): TournamentDef | null => {
+    if (!this.quests.length) return null;
+    return this.quests.find((q) => q.id === this.activeQuestId) ?? this.quests[0];
+  });
+
+  questLevels = $derived(this.quest?.levels ?? []);
 
   n = $derived(this.game?.puzzle.size ?? 0);
 
@@ -135,13 +147,18 @@ export class AppState {
   );
 
   async init(): Promise<void> {
-    const [settings, saved, progress] = await Promise.all([
+    const [settings, saved, quests] = await Promise.all([
       kvGet<Settings>('settings'),
       kvGet<SavedGame>('current'),
-      kvGet<{ completed: number[]; stars?: Record<string, number> }>(`tournament:${orbit.id}`),
+      loadLocalQuests(),
     ]);
     if (settings) this.settings = { ...DEFAULT_SETTINGS, ...settings };
     sound.setEnabled(this.settings.sound);
+    this.quests = quests;
+    this.activeQuestId = (await kvGet<string>('activeQuest')) ?? quests[0]?.id ?? null;
+    const progress = await kvGet<{ completed: number[]; stars?: Record<string, number> }>(
+      `tournament:${this.questId}`,
+    );
     if (progress) {
       const stars = progress.stars ?? {};
       // Levels completed before stars existed keep the completion star.
@@ -153,9 +170,9 @@ export class AppState {
     if (
       resumable &&
       saved.mode === 'tournament' &&
-      saved.tournamentId === orbit.id &&
+      saved.tournamentId === this.questId &&
       saved.levelIndex !== undefined &&
-      saved.levelIndex < orbit.levels.length
+      saved.levelIndex < this.questLevels.length
     ) {
       this.sessionMode = 'tournament';
       this.levelIndex = saved.levelIndex;
@@ -176,26 +193,65 @@ export class AppState {
     }
     this.ready = true;
     setInterval(() => this.tick(), 1000);
+    void this.refreshContent();
+  }
+
+  get questId(): string {
+    return this.quest?.id ?? 'none';
+  }
+
+  /**
+   * Pull newly published quests in the background. Failure is silent and
+   * harmless — the device keeps playing what it already holds.
+   */
+  async refreshContent(): Promise<void> {
+    try {
+      const result = await syncContent($state.snapshot(this.quests), CONTENT_SCHEMA_VERSION);
+      const changed = [...result.added, ...result.updated];
+      if (!changed.length) return;
+      this.quests = await loadLocalQuests();
+      this.questNews = result.added;
+    } catch {
+      /* offline, or the site is unreachable; try again next launch */
+    }
+  }
+
+  async selectQuest(id: string): Promise<void> {
+    if (id === this.activeQuestId) return;
+    this.activeQuestId = id;
+    await kvSet('activeQuest', id);
+    const progress = await kvGet<{ completed: number[]; stars?: Record<string, number> }>(
+      `tournament:${id}`,
+    );
+    const stars = progress?.stars ?? {};
+    for (const i of progress?.completed ?? []) stars[i] ??= 1;
+    this.orbitProgress = { completed: progress?.completed ?? [], stars };
+    this.questNews = this.questNews.filter((q) => q !== id);
+    this.view = 'orbitHome';
   }
 
   /** First level not yet completed — the frontier of the journey. */
   currentOrbitIndex = $derived.by(() => {
     const done = new Set(this.orbitProgress.completed);
-    for (let i = 0; i < orbit.levels.length; i++) if (!done.has(i)) return i;
-    return orbit.levels.length - 1;
+    for (let i = 0; i < this.questLevels.length; i++) if (!done.has(i)) return i;
+    return Math.max(0, this.questLevels.length - 1);
   });
 
   partsEarned = $derived(
     new Set(
       this.orbitProgress.completed
-        .map((i) => orbit.levels[i]?.partIndex)
+        .map((i) => this.questLevels[i]?.partIndex)
         .filter((p): p is number => p !== undefined),
     ),
   );
 
-  currentLevel = $derived(this.sessionMode === 'tournament' ? orbit.levels[this.levelIndex] : null);
+  currentLevel = $derived(
+    this.sessionMode === 'tournament' ? (this.questLevels[this.levelIndex] ?? null) : null,
+  );
 
-  orbitComplete = $derived(this.orbitProgress.completed.length === orbit.levels.length);
+  orbitComplete = $derived(
+    this.questLevels.length > 0 && this.orbitProgress.completed.length === this.questLevels.length,
+  );
 
   totalStars = $derived(
     Object.values(this.orbitProgress.stars).reduce((sum, s) => sum + s, 0),
@@ -203,15 +259,17 @@ export class AppState {
 
   variant = $derived.by((): PlayfieldVariantDef | null => {
     if (this.view === 'quick' || this.view === 'cabinet' || this.view === 'settings') return null;
+    const theme = this.quest?.theme;
+    if (!theme) return null;
     const id =
       this.view === 'orbitPlay' && this.currentLevel
-        ? (this.currentLevel.variant ?? orbit.theme.defaultVariant)
-        : orbit.theme.defaultVariant;
-    return orbit.theme.variants.find((v) => v.id === id) ?? null;
+        ? (this.currentLevel.variant ?? theme.defaultVariant)
+        : theme.defaultVariant;
+    return theme.variants.find((v) => v.id === id) ?? null;
   });
 
   startOrbitLevel(idx: number): void {
-    const level = orbit.levels[idx];
+    const level = this.questLevels[idx];
     if (!level) return;
     const unlocked = idx <= this.currentOrbitIndex || this.orbitProgress.completed.includes(idx);
     if (!unlocked) return;
@@ -223,7 +281,7 @@ export class AppState {
       difficulty: level.difficulty,
       seed: level.seed ?? 0,
       // 1-based so a reported code matches the level number the player sees.
-      id: `${orbit.id}-L${idx + 1}`,
+      id: `${this.questId}-L${idx + 1}`,
     };
     this.marks = new Array(level.size * level.size).fill(EMPTY);
     this.autoCells = new Array(level.size * level.size).fill(false);
@@ -245,7 +303,7 @@ export class AppState {
   }
 
   private completeOrbitLevel(): void {
-    const rule = orbit.setup.stars;
+    const rule = this.quest?.setup.stars;
     const stars = rule
       ? scoreStars(rule, this.queenActions, this.hintsUsed, this.game!.puzzle.size)
       : 1;
@@ -255,11 +313,11 @@ export class AppState {
     if (!this.orbitProgress.completed.includes(this.levelIndex)) {
       this.orbitProgress.completed.push(this.levelIndex);
     }
-    void kvSet(`tournament:${orbit.id}`, $state.snapshot(this.orbitProgress));
+    void kvSet(`tournament:${this.questId}`, $state.snapshot(this.orbitProgress));
   }
 
   nextOrbitLevel(): void {
-    if (this.levelIndex + 1 < orbit.levels.length) this.startOrbitLevel(this.levelIndex + 1);
+    if (this.levelIndex + 1 < this.questLevels.length) this.startOrbitLevel(this.levelIndex + 1);
     else this.view = 'orbitHome';
   }
 
@@ -627,7 +685,7 @@ export class AppState {
         mode: this.sessionMode,
         queenActions: this.queenActions,
         ...(this.sessionMode === 'tournament'
-          ? { tournamentId: orbit.id, levelIndex: this.levelIndex }
+          ? { tournamentId: this.questId, levelIndex: this.levelIndex }
           : {}),
       };
       void kvSet('current', save);

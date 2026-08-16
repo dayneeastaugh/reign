@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "publishedAt": "2026-08-16T10:59:25.518Z",
+  "quests": [
+    {
+      "id": "grand-orbit",
+      "name": "The Grand Orbit",
+      "version": 2,
+      "goal": "Assemble the brass orrery",
+      "levelCount": 50,
+      "file": "quests/grand-orbit.json",
+      "bytes": 23334
+    }
+  ]
+}

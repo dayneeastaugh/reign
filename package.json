@@ -8,8 +8,9 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "content:build": "tsx content/generate-grand-orbit.ts",
-    "content:validate": "tsx content/validate.ts"
+    "content:build": "tsx content/generate-grand-orbit.ts && tsx content/publish.ts",
+    "content:validate": "tsx content/validate.ts",
+    "content:publish": "tsx content/publish.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.12",
