@@ -146,21 +146,36 @@
       <p class="rule centered">One keepsake per completed quest</p>
 
       <div class="shelf-row">
-        <figure class="keepsake" class:locked={!app.orbitComplete}>
-          <div class="keepsake-frame">
-            <img src={contentUrl(quest.collectible.art ?? '')} alt={quest.collectible.name} />
-            {#if !app.orbitComplete}
-              <div class="keepsake-veil"><span class="veil-mark">?</span></div>
-            {/if}
-          </div>
-          <figcaption>
-            {#if app.orbitComplete}
-              {quest.name} ★
-            {:else}
-              {quest.name} · {orbitDone} / {quest.setup.levelCount}
-            {/if}
-          </figcaption>
-        </figure>
+        {#each app.questSummaries as summary (summary.id)}
+          {@const q = app.quests.find((x) => x.id === summary.id)}
+          {@const complete = summary.completed.length >= summary.levelCount}
+          {#if q}
+            <figure class="keepsake" class:locked={!complete}>
+              <div class="keepsake-frame">
+                {#if q.collectible.art}
+                  <img src={contentUrl(q.collectible.art)} alt={q.collectible.name} />
+                {:else}
+                  <!-- Artwork not made yet: an engraved plate keeps the shelf honest. -->
+                  <div class="keepsake-plate">
+                    <span class="plate-rule"></span>
+                    <span class="plate-name">{q.collectible.name}</span>
+                    <span class="plate-rule"></span>
+                  </div>
+                {/if}
+                {#if !complete}
+                  <div class="keepsake-veil"><span class="veil-mark">?</span></div>
+                {/if}
+              </div>
+              <figcaption>
+                {#if complete}
+                  {q.name} ★
+                {:else}
+                  {q.name} · {summary.completed.length} / {summary.levelCount}
+                {/if}
+              </figcaption>
+            </figure>
+          {/if}
+        {/each}
       </div>
       <div class="shelf-board"></div>
 
@@ -980,9 +995,11 @@
 
   .shelf-row {
     display: flex;
-    gap: 18px;
+    gap: 16px;
     align-items: flex-end;
     justify-content: center;
+    flex-wrap: wrap;
+    width: min(92vw, 460px);
   }
 
   .keepsake {
@@ -992,7 +1009,8 @@
 
   .keepsake-frame {
     position: relative;
-    width: min(64vw, 260px);
+    width: min(42vw, 200px);
+    aspect-ratio: 1;
     border-radius: 12px;
     overflow: hidden;
     border: 3px solid #6b5136;
@@ -1002,7 +1020,35 @@
   .keepsake-frame img {
     display: block;
     width: 100%;
+    height: 100%;
+    object-fit: cover;
     transition: filter 400ms ease;
+  }
+
+  .keepsake-plate {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 40% 30%, #3a332a, #221d17 70%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .plate-name {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: #d9c79b;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .plate-rule {
+    width: 42px;
+    height: 1px;
+    background: #8a7448;
   }
 
   .keepsake.locked .keepsake-frame img {

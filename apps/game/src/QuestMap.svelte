@@ -231,7 +231,13 @@
 </script>
 
 <div class="scroller" bind:this={scroller} bind:clientWidth={W}>
-  <div class="sky" style="height:{height}px;background:linear-gradient({map.sky.join(', ')})">
+  <div
+    class="sky"
+    style="height:{height}px;background:linear-gradient({map.sky.join(', ')});
+      --node-ink:{map.starColors[0]};--rim:{map.pathAhead};--earned:{map.pathBehind};
+      --locked-a:{map.lockedPalette[0]};--locked-b:{map.lockedPalette[1]};
+      --label:{map.starColors[2] ?? map.starColors[0]}"
+  >
     {#each decor.clouds as c, i (i)}
       <div
         class="cloud"
@@ -416,6 +422,11 @@
 
     {#if currentIndex <= lastIndex}
       {@const p = points[currentIndex]}
+      {#if map.vehicleGlyph}
+        <span class="vehicle" style="left:{p.x - 40}px;top:{p.y - 42}px;color:{map.pathBehind}"
+          >{map.vehicleGlyph}</span
+        >
+      {:else}
       <svg class="rocket" style="left:{p.x - 44}px;top:{p.y - 46}px" width="28" height="37" viewBox="0 0 24 32">
         <path d="M12 1 C16 6 17 12 16 20 L8 20 C7 12 8 6 12 1 Z" fill="#f2ead8" stroke="#3f3a33" stroke-width="1" />
         <path d="M12 1 C14 3.5 15 6 15.3 8 L8.7 8 C9 6 10 3.5 12 1 Z" fill="#c94f3d" />
@@ -424,6 +435,7 @@
         <path d="M16 20 L20 27 L15.5 24 Z" fill="#c94f3d" />
         <path class="flame" d="M10 21 L12 30 L14 21 Z" fill="#e3a84f" />
       </svg>
+      {/if}
     {/if}
   </div>
 </div>
@@ -549,7 +561,7 @@
 
   .world.locked {
     box-shadow: none;
-    outline: 1.5px solid #3d4870;
+    outline: 1.5px solid var(--rim);
     outline-offset: -1.5px;
   }
 
@@ -620,14 +632,14 @@
 
   .final-ring {
     height: 26px;
-    border: 1.5px solid #e3c27c88;
+    border: 1.5px solid var(--earned);
     transform: translate(-50%, -50%) rotate(-15deg);
   }
 
   .pulse {
     width: 62px;
     height: 62px;
-    border: 1.5px solid #e3c27c;
+    border: 1.5px solid var(--earned);
     animation: pw 2.4s ease-out infinite;
   }
 
@@ -646,13 +658,13 @@
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    border: 1.5px solid #46527c;
-    background: radial-gradient(circle at 35% 30%, #2b3459, #1b2340 70%);
+    border: 1.5px solid var(--rim);
+    background: radial-gradient(circle at 35% 30%, var(--locked-a), var(--locked-b) 70%);
   }
 
   .waypoint.done {
-    border-color: #e3c27c;
-    background: radial-gradient(circle at 35% 30%, #f0d9a0, #d4af6a 65%, #9c7736);
+    border-color: var(--earned);
+    background: radial-gradient(circle at 35% 30%, var(--earned), var(--earned) 65%, var(--locked-a));
   }
 
   .waypoint.locked {
@@ -663,13 +675,13 @@
     position: relative;
     font-size: 11px;
     font-weight: 600;
-    color: #9aa6c8;
+    color: var(--node-ink);
   }
 
   .big-num {
     font-size: 14px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    color: #e8eaf4;
+    color: var(--node-ink);
   }
 
   .waypoint.done .num,
@@ -689,7 +701,7 @@
     top: 2px;
     width: 1.5px;
     height: 8px;
-    background: #8a93b8;
+    background: var(--rim);
     transform: translateX(-50%);
   }
 
@@ -699,8 +711,8 @@
     width: 20px;
     height: 13px;
     border-radius: 2px;
-    background: #22315a;
-    border: 1px solid #3d4870;
+    background: var(--locked-b);
+    border: 1px solid var(--rim);
   }
 
   .panel.left {
@@ -712,8 +724,8 @@
   }
 
   .station.lit .panel {
-    background: linear-gradient(#4a6fb4, #33518c);
-    border-color: #7fa8dd;
+    background: linear-gradient(var(--earned), var(--locked-a));
+    border-color: var(--earned);
   }
 
   .core {
@@ -725,15 +737,15 @@
     place-items: center;
     font-size: 12px;
     font-weight: 600;
-    background: radial-gradient(circle at 35% 28%, #4a5578, #333e63 70%);
-    border: 1.5px solid #3d4870;
-    color: #9aa6c8;
+    background: radial-gradient(circle at 35% 28%, var(--locked-a), var(--locked-b) 70%);
+    border: 1.5px solid var(--rim);
+    color: var(--node-ink);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
   }
 
   .station.lit .core {
-    background: radial-gradient(circle at 35% 28%, #f6e6bb, #d4af6a 58%, #8a6a2f);
-    border-color: #8a6a2f;
+    background: radial-gradient(circle at 35% 28%, var(--earned), var(--earned) 58%, var(--locked-a));
+    border-color: var(--earned);
     color: #3a2c10;
   }
 
@@ -750,7 +762,7 @@
   .star {
     font-size: 10px;
     color: transparent;
-    -webkit-text-stroke: 0.8px #8a93b8;
+    -webkit-text-stroke: 0.8px var(--rim);
   }
 
   .stars.tiny .star {
@@ -758,7 +770,7 @@
   }
 
   .star.filled {
-    color: #e3c27c;
+    color: var(--earned);
     -webkit-text-stroke: 0;
   }
 
@@ -769,7 +781,7 @@
     transform: translateY(-50%);
     font-family: var(--font-serif);
     font-size: 12.5px;
-    color: #f2ead8;
+    color: var(--label);
     white-space: nowrap;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
     pointer-events: none;
@@ -781,7 +793,7 @@
   }
 
   .label.muted {
-    color: #8a93b8;
+    color: var(--rim);
   }
 
   .comet-rail {
@@ -818,6 +830,26 @@
     }
   }
 
+  .vehicle {
+    position: absolute;
+    z-index: 3;
+    font-size: 23px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+    animation: bob 3.2s ease-in-out infinite;
+  }
+
+  @keyframes bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
   .rocket {
     position: absolute;
     transform: rotate(-24deg);
@@ -844,6 +876,7 @@
     .twinkle,
     .pulse,
     .flame,
+    .vehicle,
     .comet {
       animation: none;
     }

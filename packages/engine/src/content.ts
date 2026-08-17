@@ -43,6 +43,11 @@ export interface MapThemeDef {
    * Omit for themes where it makes no sense — a garden has no comets.
    */
   cometColor?: string;
+  /**
+   * What travels the route. Omit for the built-in rocket; give a glyph for
+   * quests where a rocket would be absurd — a letter through a sorting house.
+   */
+  vehicleGlyph?: string;
   constellationColor?: string;
   asteroidColor?: string;
 }
