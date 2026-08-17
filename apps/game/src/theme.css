@@ -33,6 +33,9 @@
      A halo in the opposing tone gives them contrast on any background. */
   --x-halo: rgba(253, 250, 243, 0.95);
   --x-outline: rgba(253, 250, 243, 0.9);
+  /* Ink for the optional region patterns. Dark works across every palette,
+     since region colours are all kept comfortably above mid lightness. */
+  --pattern-ink: rgba(20, 16, 12, 0.22);
 
   --font-serif: 'Libre Caslon Text', 'Iowan Old Style', 'Palatino', 'Georgia', serif;
   --font-sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -77,4 +80,89 @@ body {
   background: var(--ink);
   color: var(--paper);
   border-style: solid;
+}
+
+
+/*
+ * Optional region patterns. Colour alone carries the region boundaries, which
+ * is a thin thread for a player with colour-vision deficiency on a 10 or 11
+ * region board. These give every region a second, non-colour signal. They live
+ * outside the component so dynamic class names are never stripped as unused,
+ * and are drawn with gradients so they cost nothing to download and adapt to
+ * any palette a future quest brings.
+ */
+.pattern-0 {
+  background-image: radial-gradient(var(--pattern-ink) 1.4px, transparent 1.5px);
+  background-size: 9px 9px;
+}
+
+.pattern-1 {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--pattern-ink) 0 1.6px,
+    transparent 1.6px 8px
+  );
+}
+
+.pattern-2 {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--pattern-ink) 0 1.6px,
+    transparent 1.6px 8px
+  );
+}
+
+.pattern-3 {
+  background-image: repeating-linear-gradient(
+    0deg,
+    var(--pattern-ink) 0 1.5px,
+    transparent 1.5px 7px
+  );
+}
+
+.pattern-4 {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--pattern-ink) 0 1.5px,
+    transparent 1.5px 7px
+  );
+}
+
+.pattern-5 {
+  background-image:
+    repeating-linear-gradient(45deg, var(--pattern-ink) 0 1.2px, transparent 1.2px 7px),
+    repeating-linear-gradient(-45deg, var(--pattern-ink) 0 1.2px, transparent 1.2px 7px);
+}
+
+.pattern-6 {
+  background-image: radial-gradient(var(--pattern-ink) 2.4px, transparent 2.5px);
+  background-size: 15px 15px;
+}
+
+.pattern-7 {
+  background-image:
+    repeating-linear-gradient(0deg, var(--pattern-ink) 0 1.2px, transparent 1.2px 10px),
+    repeating-linear-gradient(90deg, var(--pattern-ink) 0 1.2px, transparent 1.2px 10px);
+}
+
+.pattern-8 {
+  background-image: repeating-radial-gradient(
+    circle at 50% 50%,
+    var(--pattern-ink) 0 1.2px,
+    transparent 1.2px 6px
+  );
+}
+
+.pattern-9 {
+  background-image:
+    repeating-linear-gradient(45deg, var(--pattern-ink) 0 1.6px, transparent 1.6px 9px),
+    repeating-linear-gradient(90deg, var(--pattern-ink) 0 1.4px, transparent 1.4px 9px);
+}
+
+.pattern-10 {
+  background-image: repeating-linear-gradient(
+    30deg,
+    var(--pattern-ink) 0 2px,
+    transparent 2px 11px
+  );
 }

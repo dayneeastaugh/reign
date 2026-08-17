@@ -8,6 +8,7 @@
     hintCells = new Set<number>(),
     hintDanger = false,
     queenGlyph = '♛',
+    patterns = false,
     onTap,
     onBeginPaint,
     onPaint,
@@ -18,6 +19,8 @@
     hintCells?: Set<number>;
     hintDanger?: boolean;
     queenGlyph?: string;
+    /** Adds a per-region texture, so colour is not the only signal. */
+    patterns?: boolean;
     onTap: (i: number) => void;
     onBeginPaint: () => void;
     onPaint: (i: number) => void;
@@ -119,7 +122,7 @@
     const g = regions[i];
     const r = Math.floor(i / n);
     const c = i % n;
-    const parts = [`background: var(--region-${(g % 11) + 1})`];
+    const parts = [`background-color: var(--region-${(g % 11) + 1})`];
     if (r > 0) {
       const thick = regions[i] !== regions[(r - 1) * n + c];
       parts.push(`border-top: ${thick ? '2.5px solid var(--board-line)' : '1px solid var(--board-line-soft)'}`);
@@ -148,7 +151,7 @@
 >
   {#each marks as m, i (i)}
     <button
-      class="cell"
+      class="cell {patterns ? `pattern-${puzzle.regions[i] % 11}` : ''}"
       class:hinted={hintCells.has(i)}
       class:hinted-danger={hintCells.has(i) && hintDanger}
       data-i={i}

@@ -99,7 +99,7 @@
     {:else if app.view === 'settings'}
       <section class="sheet">
         <h2 class="section-title">Preferences</h2>
-        {#each [{ key: 'autoX', label: 'Auto-mark', note: 'Cross off cells a new ♛ rules out' }, { key: 'showConflicts', label: 'Highlight clashes', note: 'Colour ♛ that attack each other' }, { key: 'sound', label: 'Sound', note: 'Soft paper and stamp sounds' }] as const as row (row.key)}
+        {#each [{ key: 'autoX', label: 'Auto-mark', note: 'Cross off cells a new ♛ rules out' }, { key: 'showConflicts', label: 'Highlight clashes', note: 'Colour ♛ that attack each other' }, { key: 'patterns', label: 'Region patterns', note: 'Give each colour a texture as well' }, { key: 'sound', label: 'Sound', note: 'Soft paper and stamp sounds' }] as const as row (row.key)}
           <div class="pref">
             <div class="pref-text">
               <p class="pref-label">{row.label}</p>
@@ -338,6 +338,7 @@
             hintCells={app.hintCells}
             hintDanger={app.hintIsMistake}
             queenGlyph={app.variant?.queenGlyph ?? '♛'}
+          patterns={app.settings.patterns}
             onTap={(i) => app.tap(i)}
             onBeginPaint={() => app.beginPaint()}
             onPaint={(i) => app.paintX(i)}

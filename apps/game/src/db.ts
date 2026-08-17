@@ -4,10 +4,17 @@ import type { Difficulty, GeneratedPuzzle, TournamentDef } from '@reign/engine';
 export interface Settings {
   autoX: boolean;
   showConflicts: boolean;
+  /** Region textures, for when colour alone is hard to tell apart. */
+  patterns: boolean;
   sound: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autoX: false, showConflicts: true, sound: true };
+export const DEFAULT_SETTINGS: Settings = {
+  autoX: false,
+  showConflicts: true,
+  patterns: false,
+  sound: true,
+};
 
 export interface SavedGame {
   game: GeneratedPuzzle;
