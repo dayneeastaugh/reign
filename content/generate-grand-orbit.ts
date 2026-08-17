@@ -189,6 +189,7 @@ const tournament: TournamentDef = {
       galaxyColor: 'rgba(206, 214, 245, 0.5)',
       constellationColor: 'rgba(205, 214, 239, 0.35)',
       asteroidColor: '#6b6f85',
+      cometColor: 'rgba(226, 236, 255, 0.75)',
     },
   },
   levels,

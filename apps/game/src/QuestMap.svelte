@@ -141,6 +141,73 @@
     return map.bodyPalettes[i % map.bodyPalettes.length];
   }
 
+  /**
+   * An occasional streak across the field. It is deliberately rare, faint and
+   * quick — something you half-catch rather than watch. Spawned inside the
+   * visible band so it is never wasted off-screen, skipped while the tab is
+   * hidden, and absent entirely for reduced motion or themes that omit the
+   * colour.
+   */
+  interface Comet {
+    id: number;
+    x: number;
+    y: number;
+    angle: number;
+    length: number;
+    duration: number;
+    travel: number;
+  }
+
+  let comet = $state<Comet | null>(null);
+
+  $effect(() => {
+    if (!map.cometColor) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    let clear: ReturnType<typeof setTimeout>;
+
+    const fire = () => {
+      if (!scroller || document.visibilityState !== 'visible') return;
+      const top = scroller.scrollTop;
+      const band = scroller.clientHeight;
+      const goingLeft = Math.random() < 0.5;
+      const angle = (goingLeft ? 155 : 25) + (Math.random() * 16 - 8);
+      const duration = 1100 + Math.random() * 700;
+      comet = {
+        id: Date.now(),
+        x: goingLeft ? W * (0.65 + Math.random() * 0.3) : W * (0.05 + Math.random() * 0.3),
+        y: top + band * (0.12 + Math.random() * 0.5),
+        angle,
+        length: 46 + Math.random() * 40,
+        duration,
+        travel: W * (0.45 + Math.random() * 0.35),
+      };
+      clear = setTimeout(() => (comet = null), duration + 60);
+    };
+
+    const schedule = () => {
+      timer = setTimeout(
+        () => {
+          fire();
+          schedule();
+        },
+        14000 + Math.random() * 26000,
+      );
+    };
+
+    // Not immediately on arrival — it should feel incidental, not staged.
+    timer = setTimeout(() => {
+      fire();
+      schedule();
+    }, 5000 + Math.random() * 9000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clear);
+    };
+  });
+
   /** $state so the centring effect re-runs once the node is attached. */
   let scroller = $state<HTMLDivElement | null>(null);
   /** Keyed on width too: a resize relays the walk, so re-centre after it. */
@@ -331,6 +398,21 @@
         {/if}
       </div>
     {/each}
+
+    {#if comet}
+      {#key comet.id}
+        <div
+          class="comet-rail"
+          style="left:{comet.x}px;top:{comet.y}px;transform:rotate({comet.angle}deg)"
+          aria-hidden="true"
+        >
+          <span
+            class="comet"
+            style="width:{comet.length}px;--travel:{comet.travel}px;animation-duration:{comet.duration}ms;background:linear-gradient(90deg, transparent, {map.cometColor})"
+          ></span>
+        </div>
+      {/key}
+    {/if}
 
     {#if currentIndex <= lastIndex}
       {@const p = points[currentIndex]}
@@ -702,6 +784,40 @@
     color: #8a93b8;
   }
 
+  .comet-rail {
+    position: absolute;
+    transform-origin: 0 50%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .comet {
+    display: block;
+    height: 1.5px;
+    border-radius: 1px;
+    opacity: 0;
+    animation-name: comet-drift;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.7, 1);
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes comet-drift {
+    0% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+    18% {
+      opacity: 0.85;
+    }
+    75% {
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateX(var(--travel));
+      opacity: 0;
+    }
+  }
+
   .rocket {
     position: absolute;
     transform: rotate(-24deg);
@@ -727,7 +843,8 @@
   @media (prefers-reduced-motion: reduce) {
     .twinkle,
     .pulse,
-    .flame {
+    .flame,
+    .comet {
       animation: none;
     }
   }

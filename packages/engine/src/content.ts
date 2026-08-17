@@ -38,6 +38,11 @@ export interface MapThemeDef {
   finalGlyph: string;
   /** Deep-field decoration. */
   galaxyColor?: string;
+  /**
+   * Enables an occasional drifting streak across the field, in this colour.
+   * Omit for themes where it makes no sense — a garden has no comets.
+   */
+  cometColor?: string;
   constellationColor?: string;
   asteroidColor?: string;
 }
