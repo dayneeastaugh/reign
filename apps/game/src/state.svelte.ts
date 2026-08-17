@@ -16,6 +16,7 @@ import {
 } from '@reign/engine';
 import { sound } from './sound';
 import { loadLocalQuests, syncContent } from './content';
+import { computeStats, evaluate, type QuestSummary } from './achievements';
 
 export type View = 'quick' | 'orbitHome' | 'orbitPlay' | 'cabinet' | 'settings';
 import { CONTENT_SCHEMA_VERSION } from '@reign/engine';
@@ -24,10 +25,12 @@ import {
   kvSet,
   kvDel,
   addResult,
+  allResults,
   exportBackup,
   importBackup,
   resetAll,
   DEFAULT_SETTINGS,
+  type GameResult,
   type SavedGame,
   type Settings,
 } from './db';
@@ -98,6 +101,11 @@ export class AppState {
   /** Ids that arrived or changed on the last content sync. */
   questNews = $state<string[]>([]);
 
+  /** Every finished puzzle, and every quest's progress — the basis of the
+      lifetime record shown in the cabinet. */
+  results = $state<GameResult[]>([]);
+  progressByQuest = $state<Record<string, { completed: number[]; stars: Record<string, number> }>>({});
+
   private undoStack: UndoEntry[] = [];
   private resultRecorded = false;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -149,11 +157,13 @@ export class AppState {
   );
 
   async init(): Promise<void> {
-    const [settings, saved, quests] = await Promise.all([
+    const [settings, saved, quests, results] = await Promise.all([
       kvGet<Settings>('settings'),
       kvGet<SavedGame>('current'),
       loadLocalQuests(),
+      allResults(),
     ]);
+    this.results = results;
     if (settings) this.settings = { ...DEFAULT_SETTINGS, ...settings };
     sound.setEnabled(this.settings.sound);
     this.quests = quests;
@@ -193,10 +203,39 @@ export class AppState {
     } else {
       this.newGame(this.difficulty);
     }
+    await this.loadAllProgress();
     this.ready = true;
     setInterval(() => this.tick(), 1000);
     void this.refreshContent();
   }
+
+  /** Progress for every quest held, so the record spans all of them. */
+  private async loadAllProgress(): Promise<void> {
+    const entries = await Promise.all(
+      this.quests.map(async (q) => {
+        const p = await kvGet<{ completed: number[]; stars?: Record<string, number> }>(
+          `tournament:${q.id}`,
+        );
+        return [q.id, { completed: p?.completed ?? [], stars: p?.stars ?? {} }] as const;
+      }),
+    );
+    this.progressByQuest = Object.fromEntries(entries);
+  }
+
+  questSummaries = $derived.by((): QuestSummary[] =>
+    this.quests.map((q) => ({
+      id: q.id,
+      levelCount: q.levels.length,
+      completed: this.progressByQuest[q.id]?.completed ?? [],
+      stars: this.progressByQuest[q.id]?.stars ?? {},
+    })),
+  );
+
+  stats = $derived(computeStats(this.results, this.questSummaries));
+
+  achievements = $derived(evaluate(this.stats));
+
+  earnedCount = $derived(this.achievements.filter((a) => a.earned).length);
 
   get questId(): string {
     return this.quest?.id ?? 'none';
@@ -329,7 +368,9 @@ export class AppState {
     if (!this.orbitProgress.completed.includes(this.levelIndex)) {
       this.orbitProgress.completed.push(this.levelIndex);
     }
-    void kvSet(`tournament:${this.questId}`, $state.snapshot(this.orbitProgress));
+    const snapshot = $state.snapshot(this.orbitProgress);
+    void kvSet(`tournament:${this.questId}`, snapshot);
+    this.progressByQuest = { ...this.progressByQuest, [this.questId]: snapshot };
   }
 
   nextOrbitLevel(): void {
@@ -652,13 +693,15 @@ export class AppState {
     this.persistSoon();
     if (this.solved && !this.resultRecorded && this.game) {
       this.resultRecorded = true;
-      void addResult({
+      const record = {
         puzzleId: this.game.id,
         difficulty: this.game.difficulty,
         seconds: this.elapsed,
         hintsUsed: this.hintsUsed,
         finishedAt: Date.now(),
-      });
+      };
+      void addResult(record);
+      this.results = [...this.results, record];
       if (this.sessionMode === 'tournament') this.completeOrbitLevel();
       if (this.sessionMode === 'tournament' && this.currentLevel?.special) sound.part();
       else sound.solved();

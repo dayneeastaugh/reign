@@ -4,6 +4,7 @@
   import QuestMap from './QuestMap.svelte';
   import { app } from './state.svelte';
   import { contentUrl } from './content';
+  import { formatTime } from './achievements';
   import { pwa } from './pwa.svelte';
 
   let fileInput: HTMLInputElement;
@@ -164,9 +165,61 @@
       <div class="shelf-board"></div>
 
       <div class="plaques">
-        <span class="plaque">★ {app.totalStars} stars</span>
-        <span class="plaque">{orbitDone} levels cleared</span>
+        <span class="plaque">★ {app.stats.stars} stars</span>
+        <span class="plaque">{app.stats.questLevels} levels cleared</span>
       </div>
+
+      <section class="record">
+        <h2 class="section-title">The record</h2>
+        <div class="figures">
+          <div class="figure">
+            <span class="figure-n">{app.stats.solved}</span>
+            <span class="figure-l">puzzles solved</span>
+          </div>
+          <div class="figure">
+            <span class="figure-n">{app.stats.currentStreak}</span>
+            <span class="figure-l">day streak</span>
+          </div>
+          <div class="figure">
+            <span class="figure-n">{app.stats.hintFree}</span>
+            <span class="figure-l">without a hint</span>
+          </div>
+          <div class="figure">
+            <span class="figure-n">{app.stats.daysPlayed}</span>
+            <span class="figure-l">days played</span>
+          </div>
+        </div>
+
+        {#if app.stats.solved > 0}
+          <div class="bests">
+            {#each ['easy', 'medium', 'hard'] as const as d (d)}
+              {#if app.stats.best[d] !== undefined}
+                <span class="best">
+                  <em>{d}</em> best {formatTime(app.stats.best[d] ?? 0)} · {app.stats.byDifficulty[d]} solved
+                </span>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+
+        <h2 class="section-title">
+          Marks earned <span class="count">{app.earnedCount} / {app.achievements.length}</span>
+        </h2>
+        <ul class="marks">
+          {#each app.achievements as a (a.id)}
+            <li class="mark-row" class:earned={a.earned}>
+              <span class="mark-glyph">{a.mark}</span>
+              <span class="mark-text">
+                <span class="mark-name">{a.name}</span>
+                <span class="mark-note">
+                  {a.note}{!a.earned && (a.have ?? 0) > 0 ? ` · ${a.have} of ${a.need}` : ''}
+                </span>
+              </span>
+              {#if a.earned}<span class="mark-tick">✓</span>{/if}
+            </li>
+          {/each}
+        </ul>
+      </section>
       {/if}
     {:else if app.view === 'orbitHome'}
       {#if quest}
@@ -992,6 +1045,122 @@
     display: flex;
     gap: 10px;
     margin-top: 8px;
+  }
+
+  .record {
+    width: min(92vw, 460px);
+    margin-top: 26px;
+  }
+
+  .count {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+  }
+
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .figure {
+    background: var(--paper-raised);
+    border: 1px solid var(--ink-faint);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .figure-n {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .figure-l {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .bests {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .best em {
+    font-style: normal;
+    text-transform: capitalize;
+    color: var(--ink);
+  }
+
+  .marks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mark-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 2px;
+    border-bottom: 1px solid var(--ink-faint);
+    opacity: 0.45;
+  }
+
+  .mark-row.earned {
+    opacity: 1;
+  }
+
+  .mark-glyph {
+    width: 32px;
+    height: 32px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1.5px dashed var(--ink-faint);
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+
+  .mark-row.earned .mark-glyph {
+    border: 1.5px solid var(--gold);
+    background: color-mix(in srgb, var(--gold) 18%, transparent);
+    color: var(--gold);
+  }
+
+  .mark-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mark-name {
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+
+  .mark-note {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .mark-tick {
+    color: var(--gold);
+    font-size: 14px;
   }
 
   .plaque {
