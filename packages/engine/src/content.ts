@@ -77,6 +77,11 @@ export interface LevelDef {
 export interface CollectibleDef {
   name: string;
   partGlyphs: string[];
+  /**
+   * Optional line art per part, as SVG path data on a 24x24 grid, drawn with a
+   * stroke. Falls back to partGlyphs where absent, so older content still works.
+   */
+  partPaths?: string[];
   /** Path to the keepsake artwork, relative to the content root. */
   art?: string;
 }

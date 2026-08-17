@@ -161,7 +161,7 @@ const quest: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'clockwork-post',
   name: 'The Clockwork Post',
-  version: 2,
+  version: 3,
   goal: 'Rebuild the letter scale',
   setup: {
     levelCount: LEVEL_COUNT,
@@ -172,7 +172,17 @@ const quest: TournamentDef = {
   collectible: {
     name: 'The Letter Scale',
     partGlyphs: ['▽', '⚖', '◍', '▤'],
-    // Artwork to follow; the cabinet shows an engraved placeholder until then.
+    partPaths: [
+      // Pan slung on chains
+      'M12 3v3M12 6 7 10M12 6l5 4M5 11h14a7 7 0 0 1-14 0Z',
+      // Balance beam with hooked ends
+      'M3 14h2m14-4h2M5 14 19 10M11 11.4l1.6-.5.5 1.6-1.6.5zM12 12v3',
+      // Poise weight
+      'M10.5 6h3v2h-3zM9 8h6l1 10H8z',
+      // Footed base
+      'M8 8h8v3H8zM5 11h14v3H5zM4 14h16v3H4zM6 17h12v2H6z',
+    ],
+    art: 'assets/clockwork-post/letter-scale.jpg',
   },
   theme: {
     id: 'post',

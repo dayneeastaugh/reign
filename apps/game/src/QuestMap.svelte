@@ -774,22 +774,26 @@
     -webkit-text-stroke: 0;
   }
 
+  /* A small engraved plaque reads better against a busy field than loose text. */
   .label {
     position: absolute;
     top: 50%;
-    left: calc(50% + 44px);
+    left: calc(50% + 40px);
     transform: translateY(-50%);
     font-family: var(--font-serif);
     font-size: 12.5px;
     color: var(--label);
     white-space: nowrap;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
     pointer-events: none;
+    padding: 3px 9px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.42);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--earned) 45%, transparent);
   }
 
   .label.left {
     left: auto;
-    right: calc(50% + 44px);
+    right: calc(50% + 40px);
   }
 
   .label.muted {

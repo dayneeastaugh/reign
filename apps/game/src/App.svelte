@@ -255,7 +255,16 @@
         <p class="goal">{quest.goal} · {orbitDone} / {quest.setup.levelCount}</p>
         <div class="parts">
           {#each quest.collectible.partGlyphs as glyph, p (p)}
-            <span class="part" class:earned={app.partsEarned.has(p)}>{glyph}</span>
+            {@const path = quest.collectible.partPaths?.[p]}
+            <span class="part" class:earned={app.partsEarned.has(p)}>
+              {#if path}
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none"
+                  stroke="currentColor" stroke-width="1.4" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true"><path d={path} /></svg>
+              {:else}
+                {glyph}
+              {/if}
+            </span>
           {/each}
         </div>
       </div>
@@ -285,9 +294,10 @@
     {:else}
       {#if app.view === 'orbitPlay' && app.currentLevel}
         <header class="level-head">
-          <button class="tag slim" onclick={() => app.goOrbitHome()}>‹ Map</button>
+          <button class="tag slim back" onclick={() => app.goOrbitHome()}>‹ Map</button>
           <div class="level-title">
-            <h2>{app.currentLevel.name}</h2>
+            <p class="level-no">Level {app.levelIndex + 1}</p>
+            <h2 class="level-name">{app.currentLevel.name}</h2>
             <p class="rule slim-rule">
               {app.currentLevel.difficulty}{app.currentLevel.special ? ' · part on completion' : ''}
             </p>
@@ -618,11 +628,31 @@
   }
 
   .level-head {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    position: relative;
     width: min(92vw, 480px);
-    text-align: left;
+    text-align: center;
+    padding-top: 2px;
+  }
+
+  .level-head .back {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  .level-no {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .level-name {
+    font-size: 26px;
+    margin: 1px 0 0;
+    color: var(--gold);
   }
 
   .controls,
@@ -694,8 +724,8 @@
   }
 
   .part {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: grid;
     place-items: center;
@@ -1005,11 +1035,15 @@
   .keepsake {
     margin: 0;
     text-align: center;
+    /* Sized by the frame, not the caption — a long quest name used to widen the
+       figure until the shelf wrapped. */
+    width: min(42vw, 160px);
+    flex: none;
   }
 
   .keepsake-frame {
     position: relative;
-    width: min(42vw, 200px);
+    width: 100%;
     aspect-ratio: 1;
     border-radius: 12px;
     overflow: hidden;
@@ -1069,9 +1103,10 @@
   }
 
   figcaption {
-    margin-top: 10px;
+    margin-top: 9px;
     font-family: var(--font-serif);
-    font-size: 15px;
+    font-size: 13px;
+    line-height: 1.35;
     color: var(--ink);
   }
 
