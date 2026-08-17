@@ -45,8 +45,8 @@
       `background:${v.background};--paper:${v.boardLine};--ink:${v.chromeColor};` +
       `--ink-soft:${v.chromeSoft};--ink-faint:${v.chromeSoft}55;` +
       `--paper-raised:rgba(255,255,255,0.06);--board-line:${v.boardLine};` +
-      `--board-line-soft:${v.chromeSoft}44;--queen-color:${v.queenColor};` +
-      `--x-color:${v.xColor};--x-halo:${v.boardLine};${regions}`
+      `--board-line-soft:${v.boardLine}5c;--queen-color:${v.queenColor};` +
+      `--x-color:${v.xColor};--x-halo:${v.boardLine};--x-outline:${v.boardLine};${regions}`
     );
   });
 

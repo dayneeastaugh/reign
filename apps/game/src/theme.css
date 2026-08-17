@@ -32,6 +32,7 @@
   /* Marks sit on arbitrary region colours, where no flat colour clears 4.5:1.
      A halo in the opposing tone gives them contrast on any background. */
   --x-halo: rgba(253, 250, 243, 0.95);
+  --x-outline: rgba(253, 250, 243, 0.9);
 
   --font-serif: 'Libre Caslon Text', 'Iowan Old Style', 'Palatino', 'Georgia', serif;
   --font-sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

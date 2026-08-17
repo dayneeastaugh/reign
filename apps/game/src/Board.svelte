@@ -187,7 +187,7 @@
   }
 
   .queen {
-    font-size: clamp(16px, 4.6vw, 26px);
+    font-size: clamp(21px, 6.1vw, 33px);
     text-shadow: 0 1px 3px var(--x-halo);
     color: var(--queen-color);
     line-height: 1;
@@ -219,15 +219,18 @@
   }
 
   .x {
-    font-size: clamp(14px, 3.7vw, 19px);
+    font-size: clamp(15px, 3.9vw, 20px);
     font-weight: 700;
     color: var(--x-color);
     line-height: 1;
     pointer-events: none;
+    /* A crisp thin outline separates the mark from the region beneath it; the
+       soft shadow underneath keeps it readable on the lightest colours too. */
+    -webkit-text-stroke: 0.7px var(--x-outline);
+    paint-order: stroke fill;
     text-shadow:
       0 0 2px var(--x-halo),
-      0 1px 2px var(--x-halo),
-      0 -1px 2px var(--x-halo);
+      0 1px 2px var(--x-halo);
   }
 
   @keyframes stamp {
