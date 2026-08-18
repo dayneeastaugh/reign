@@ -592,12 +592,13 @@
             style="background:radial-gradient(115% 62% at 74% 86%, {b.accent}22, {b.accent}0b 55%, transparent)"
           ></span>
           {#if b.glyph}
+            {@const lift = k === 0 ? 196 : 34}
             <span
               class="storey-badge"
-              style="border-color:{map.pathBehind};color:{map.starColors[0]};background:{map.sky[0]}"
+              style="bottom:{lift}px;border-color:{map.pathBehind};color:{map.starColors[0]};background:{map.sky[0]}"
               >{b.glyph}</span
             >
-            <span class="storey-name" style="color:{map.starColors[1]}">{b.name}</span>
+            <span class="storey-name" style="bottom:{lift + 6}px;color:{map.starColors[1]}">{b.name}</span>
           {/if}
           {#if k > 0}
             <span
@@ -784,7 +785,7 @@
           <button class="counter" class:lit={done} disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
             <span class="bench left"></span>
             <span class="bench right"></span>
-            <span class="lever"></span>
+            <span class="lever"><span class="knob"></span></span>
             <span class="press">{done ? partGlyphs[level.partIndex ?? 0] : i + 1}</span>
           </button>
         {:else if tier === 'station'}
@@ -860,6 +861,7 @@
             class="stamp"
             class:done
             class:locked
+            class:starred={stars >= 3}
             disabled={locked}
             onclick={() => onSelect(i)}
             aria-label={aria}
@@ -879,7 +881,12 @@
           </button>
         {/if}
 
-        {#if stars > 0}
+        {#if interior}
+          <span class="rail-stars" class:tiny={tier === 'waypoint'} class:dim={locked}
+            style="background:{map.sky[0]};border-color:{map.lockedPalette[0]}">
+            {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
+          </span>
+        {:else if stars > 0}
           <span class="stars" class:tiny={tier === 'waypoint'}>
             {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
           </span>
@@ -1234,6 +1241,37 @@
     background: radial-gradient(circle at 35% 28%, var(--earned), var(--earned) 58%, var(--locked-a));
     border-color: var(--earned);
     color: #3a2c10;
+  }
+
+  .rail-stars {
+    display: flex;
+    gap: 2px;
+    margin-top: 5px;
+    padding: 1.5px 4px;
+    border: 1px solid;
+    border-radius: 3px;
+    font-size: 8px;
+    line-height: 1;
+    opacity: 0.95;
+  }
+
+  .rail-stars.tiny {
+    font-size: 6.5px;
+    padding: 1px 3px;
+    gap: 1.5px;
+  }
+
+  .rail-stars.dim {
+    opacity: 0.55;
+  }
+
+  .rail-stars .star {
+    color: rgba(255, 255, 255, 0.16);
+  }
+
+  .rail-stars .star.filled {
+    color: #f0c04a;
+    text-shadow: 0 0 4px rgba(240, 192, 74, 0.55);
   }
 
   .stars {
@@ -1713,25 +1751,49 @@
   }
 
   /* Stamp: an ordinary stop */
+  /*
+   * An ordinary stop is a numbered disc set into the tube: ivory face, brass
+   * rim, dark serif numeral. Four states, each a step up in light — locked
+   * charcoal, current lit, done brass-rimmed, three stars fully polished.
+   */
   .stamp {
-    width: 28px;
-    height: 24px;
-    border-radius: 3px;
-    border: 1.5px dashed var(--rim);
-    background: linear-gradient(var(--locked-a), var(--locked-b));
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--rim);
+    background: radial-gradient(circle at 36% 30%, #f3e7ce, #d9c8a4 62%, #b9a47c);
+    box-shadow:
+      inset 0 -2px 3px rgba(60, 42, 18, 0.3),
+      0 2px 5px rgba(0, 0, 0, 0.45);
+  }
+
+  .stamp .num {
+    color: #33260f;
+    font-family: var(--font-serif);
+    font-weight: 700;
   }
 
   .stamp.done {
-    border: 1.5px dashed var(--earned);
-    background: linear-gradient(var(--earned), var(--locked-a));
+    border-color: var(--earned);
+    box-shadow:
+      inset 0 -2px 3px rgba(60, 42, 18, 0.28),
+      0 0 9px -1px var(--earned),
+      0 2px 5px rgba(0, 0, 0, 0.45);
   }
 
+  .stamp.starred {
+    background: radial-gradient(circle at 36% 30%, #fff6e2, #eddcb4 60%, #cbb384);
+  }
+
+  /* Locked is charcoal, not a faded copy: the brass has not been lit yet. */
   .stamp.locked {
-    opacity: 0.5;
+    border-color: var(--locked-a);
+    background: radial-gradient(circle at 36% 30%, #6c6459, #4c463d 62%, #37322b);
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.4);
   }
 
-  .stamp.done .num {
-    color: #2b2010;
+  .stamp.locked .num {
+    color: #b3aa9c;
   }
 
   /* Parcel: a milestone */
@@ -1821,31 +1883,55 @@
   .lever {
     position: absolute;
     left: 50%;
-    top: 0;
-    width: 2px;
-    height: 11px;
+    top: -9px;
+    width: 2.5px;
+    height: 20px;
+    border-radius: 2px;
     background: var(--rim);
-    transform: translateX(-50%) rotate(14deg);
+    transform: translateX(-50%) rotate(12deg);
     transform-origin: bottom center;
+  }
+
+  .knob {
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle at 34% 30%, #fff2d4, var(--rim));
+  }
+
+  .counter.lit .lever,
+  .counter.lit .knob {
+    background: var(--earned);
+  }
+
+  .counter.lit .knob {
+    background: radial-gradient(circle at 34% 30%, #fff6e0, var(--earned));
   }
 
   .press {
     position: relative;
-    width: 30px;
-    height: 22px;
+    width: 34px;
+    height: 24px;
     border-radius: 3px;
     display: grid;
     place-items: center;
-    font-size: 12px;
-    font-weight: 600;
-    background: linear-gradient(var(--locked-a), var(--locked-b));
+    font-family: var(--font-serif);
+    font-size: 13px;
+    font-weight: 700;
+    background: linear-gradient(160deg, #6b6157, #4a433a 55%, #363029);
     border: 1.5px solid var(--rim);
     color: var(--node-ink);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 246, 224, 0.18),
+      0 3px 8px rgba(0, 0, 0, 0.45);
   }
 
   .counter.lit .press {
-    background: linear-gradient(var(--earned), var(--earned));
+    background: linear-gradient(160deg, #f4dda6, #c9a24a 58%, #9a7833);
     border-color: var(--earned);
     color: #2b2010;
   }
