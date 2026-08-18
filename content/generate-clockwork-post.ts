@@ -54,11 +54,17 @@ const chrome = { chromeColor: '#f4ead6', chromeSoft: '#a8977d' };
 
 /** Painted rooms, cropped from the concept art and shipped over the content channel. */
 const art = (id: string) => `assets/clockwork-post/rooms/${id}.jpg`;
+/** Storey walls for the map, cropped either side of the painted route. */
+const walls = (id: string) => ({
+  wallLeft: `assets/clockwork-post/walls/${id}-left.jpg`,
+  wallRight: `assets/clockwork-post/walls/${id}-right.jpg`,
+});
 
 const VARIANTS: PlayfieldVariantDef[] = [
   {
     id: 'intake',
     roomArt: art('intake'),
+    ...walls('intake'),
     background: 'linear-gradient(#2c2118, #3a2c1e)',
     boardLine: '#1a1209',
     regionPalette: makePalette(0, 18, 40, 46, 78, 3),
@@ -70,6 +76,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
   {
     id: 'sorting',
     roomArt: art('sorting'),
+    ...walls('sorting'),
     background: 'linear-gradient(#241d16, #322820)',
     boardLine: '#150f08',
     regionPalette: makePalette(-14, 16, 38, 46, 78),
@@ -81,6 +88,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
   {
     id: 'franking',
     roomArt: art('franking'),
+    ...walls('franking'),
     background: 'linear-gradient(#2a1614, #38201c)',
     boardLine: '#180c0a',
     regionPalette: makePalette(-26, 20, 42, 46, 78),
@@ -92,6 +100,7 @@ const VARIANTS: PlayfieldVariantDef[] = [
   {
     id: 'restante',
     roomArt: art('restante'),
+    ...walls('restante'),
     background: 'linear-gradient(#1e2018, #2a2c22)',
     boardLine: '#101208',
     regionPalette: makePalette(18, 16, 36, 46, 78),
@@ -169,7 +178,7 @@ const quest: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'clockwork-post',
   name: 'The Clockwork Post',
-  version: 6,
+  version: 8,
   goal: 'Rebuild the letter scale',
   setup: {
     levelCount: LEVEL_COUNT,
@@ -223,6 +232,8 @@ const quest: TournamentDef = {
       cometColor: 'rgba(255, 234, 190, 0.7)',
       vehicleGlyph: '✉',
       style: 'interior',
+      doorArt: 'assets/clockwork-post/walls/front-door.jpg',
+      loftArt: 'assets/clockwork-post/walls/loft.jpg',
       rooms: {
         intake: 'Intake',
         sorting: 'Sorting floor',

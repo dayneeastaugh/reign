@@ -24,6 +24,13 @@ export interface PlayfieldVariantDef {
    * it arrives over the content channel and a fresh install plays without it.
    */
   roomArt?: string;
+  /**
+   * Wall art for this room's storey on the quest map, hugging the left and
+   * right walls so the route keeps a clear channel down the middle. Same
+   * decoration-only rule as roomArt.
+   */
+  wallLeft?: string;
+  wallRight?: string;
 }
 
 /** Decoration for the journey map. The layout is generated; the theme paints it. */
@@ -60,6 +67,9 @@ export interface MapThemeDef {
    * faces, tube runs. Recolouring one to look like the other never convinces.
    */
   style?: 'orbital' | 'interior';
+  /** Painted ends of an interior route: the way in, and the room it leads to. */
+  doorArt?: string;
+  loftArt?: string;
   /** Display names per variant id, shown on the floor plates of an interior. */
   rooms?: Record<string, string>;
   constellationColor?: string;

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { LevelDef, MapThemeDef, PlayfieldVariantDef } from '@reign/engine';
+  import { contentUrl } from './content';
 
   let {
     levels,
@@ -135,6 +136,8 @@
         name: string;
         wall: string;
         accent: string;
+        wallLeft: string;
+        wallRight: string;
         glyph: string;
         start: number;
         top: number;
@@ -176,6 +179,8 @@
         // differ in hue but sit so dark that side by side they read identical;
         // the light in the room is what tells one storey from the next.
         accent: variant?.queenColor ?? map.starColors[0],
+        wallLeft: variant?.wallLeft ?? '',
+        wallRight: variant?.wallRight ?? '',
         glyph: variant?.queenGlyph ?? '',
         start: g.from + 1,
         top,
@@ -185,6 +190,8 @@
   });
 
   /** Wall furniture, placed away from the tube lanes so nothing collides. */
+  const painted = $derived(interior && variants.some((v) => v.wallLeft));
+
   const fittings = $derived.by(() => {
     if (!interior) return { racks: [], shelves: [], lamps: [], clocks: [], letters: [] };
     const rnd = makeRng(834112);
@@ -207,7 +214,9 @@
         letters.push({ x: leftSide ? W - 62 - rnd() * 36 : railW + 22 + rnd() * 36, y: y + 40, r: 4 + rnd() * 2, rot: -20 + rnd() * 40 });
       }
     }
-    return { racks, shelves, lamps, clocks, letters };
+    // Where the room is painted, only the letters stay — they move, and a
+    // still image cannot.
+    return painted ? { racks: [], shelves: [], lamps: [], clocks: [], letters } : { racks, shelves, lamps, clocks, letters };
   });
 
   /**
@@ -587,6 +596,12 @@
       {#each bands as b, k (b.id)}
         <div class="storey" style="left:{railW}px;top:{b.top}px;height:{b.height}px;background:{b.wall}">
           <span class="storey-ceiling" style="background:linear-gradient({map.sky[0]}, transparent)"></span>
+          {#if b.wallLeft}
+            <span class="wall-art left" style="background-image:url({contentUrl(b.wallLeft)})"></span>
+          {/if}
+          {#if b.wallRight}
+            <span class="wall-art right" style="background-image:url({contentUrl(b.wallRight)})"></span>
+          {/if}
           <span
             class="storey-wash"
             style="background:radial-gradient(115% 62% at 74% 86%, {b.accent}22, {b.accent}0b 55%, transparent)"
@@ -663,17 +678,21 @@
       <!-- The loft: where the tube ends and the postmaster works. -->
       <div class="loft" style="left:{railW}px">
         <span class="loft-wall" style="background:linear-gradient({map.sky[0]}, transparent)"></span>
-        <div class="loft-holes">
-          {#each Array(18) as _, i (i)}
-            <span class="hole" style="border-color:{map.pathAhead};background:{map.sky[0]}"></span>
-          {/each}
-        </div>
-        <span class="desk-leg left" style="background:{map.lockedPalette[2]}"></span>
-        <span class="desk-leg right" style="background:{map.lockedPalette[2]}"></span>
-        <span class="desk" style="background:linear-gradient({map.lockedPalette[0]}, {map.lockedPalette[2]})"></span>
-        <span class="desk-edge" style="background:{map.pathBehind}"></span>
-        <span class="ledger" style="background:{map.bodyPalettes[2][0]};border-color:{map.bodyPalettes[2][2]}"></span>
-        <span class="desk-lamp" style="background:{map.pathBehind}"></span>
+        {#if map.loftArt}
+          <span class="loft-art" style="background-image:url({contentUrl(map.loftArt)})"></span>
+        {:else}
+          <div class="loft-holes">
+            {#each Array(18) as _, i (i)}
+              <span class="hole" style="border-color:{map.pathAhead};background:{map.sky[0]}"></span>
+            {/each}
+          </div>
+          <span class="desk-leg left" style="background:{map.lockedPalette[2]}"></span>
+          <span class="desk-leg right" style="background:{map.lockedPalette[2]}"></span>
+          <span class="desk" style="background:linear-gradient({map.lockedPalette[0]}, {map.lockedPalette[2]})"></span>
+          <span class="desk-edge" style="background:{map.pathBehind}"></span>
+          <span class="ledger" style="background:{map.bodyPalettes[2][0]};border-color:{map.bodyPalettes[2][2]}"></span>
+          <span class="desk-lamp" style="background:{map.pathBehind}"></span>
+        {/if}
         <span
           class="desk-glow"
           style="background:radial-gradient(closest-side, {map.nebulas[0]}, transparent)"
@@ -681,10 +700,14 @@
       </div>
 
       <div class="doorway" style="left:{railW}px">
-        <span class="door-panel" style="background:linear-gradient({map.homePalette[1]}, {map.homePalette[2]})"></span>
-        <span class="door-plate" style="background:linear-gradient({map.homePalette[0]}, {map.homePalette[1]})">
-          <span class="door-slot" style="background:{map.sky[0]}"></span>
-        </span>
+        {#if map.doorArt}
+          <span class="door-art" style="background-image:url({contentUrl(map.doorArt)})"></span>
+        {:else}
+          <span class="door-panel" style="background:linear-gradient({map.homePalette[1]}, {map.homePalette[2]})"></span>
+          <span class="door-plate" style="background:linear-gradient({map.homePalette[0]}, {map.homePalette[1]})">
+            <span class="door-slot" style="background:{map.sky[0]}"></span>
+          </span>
+        {/if}
         <span class="door-mat" style="background:{map.lockedPalette[0]}"></span>
       </div>
     {:else}
@@ -1503,6 +1526,40 @@
     inset: 0;
   }
 
+  /*
+   * The room's own walls, anchored to the floor and hugging each side so the
+   * tube keeps a clear channel down the middle. Feathered at the top, where
+   * the crop ends and the flat wall above has to take over.
+   */
+  .wall-art {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    /*
+     * Repeated up the storey rather than sat at the bottom: a band runs several
+     * hundred pixels and a single crop would leave most of it bare wall. The
+     * strips are dominated by vertical pipework, which reads as a riser when it
+     * repeats. Anchored at the bottom so the furniture always meets the floor.
+     */
+    background-repeat: repeat-y;
+    background-position: bottom center;
+    background-size: 100% auto;
+    opacity: 0.95;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(transparent, #000 12%);
+    mask-image: linear-gradient(transparent, #000 12%);
+  }
+
+  .wall-art.left {
+    left: 0;
+    width: 76px;
+  }
+
+  .wall-art.right {
+    right: 0;
+    width: 56px;
+  }
+
   /* The floor plate reads as the underside of the storey above. */
   .storey-floor {
     position: absolute;
@@ -1538,7 +1595,8 @@
   /* Announces the room as you come up through its floor. */
   .storey-name {
     position: absolute;
-    right: 46px;
+    right: 74px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
     bottom: 40px;
     font-family: var(--font-serif);
     font-size: 10px;
@@ -1699,6 +1757,32 @@
     width: 116px;
     height: 84px;
     border-radius: 50%;
+  }
+
+  .loft-art {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 92px;
+    background-size: cover;
+    background-position: top center;
+    -webkit-mask-image: linear-gradient(#000 62%, transparent);
+    mask-image: linear-gradient(#000 62%, transparent);
+  }
+
+  .door-art {
+    position: absolute;
+    /* Offset so the first stop lands beside the door rather than on its arch. */
+    left: 58%;
+    bottom: 26px;
+    width: 168px;
+    height: 190px;
+    transform: translateX(-50%);
+    background-size: cover;
+    background-position: bottom center;
+    -webkit-mask-image: linear-gradient(transparent, #000 16%);
+    mask-image: linear-gradient(transparent, #000 16%);
   }
 
   .doorway {
