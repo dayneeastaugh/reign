@@ -7,6 +7,7 @@
   import { formatTime } from './achievements';
   import { pwa } from './pwa.svelte';
 
+  let questSheet = $state(false);
   let fileInput: HTMLInputElement;
   let confirmReset = $state(false);
   let codeCopied = $state(false);
@@ -79,7 +80,14 @@
 <div class="app" style={variantStyle}>
   <header class="appbar">
     <span class="mark" aria-hidden="true">♛</span>
-    <h1 class="bar-title">{barTitle}</h1>
+    {#if app.view === 'orbitHome' && app.quests.length > 1}
+      <button class="bar-title switcher" onclick={() => (questSheet = !questSheet)}>
+        {barTitle}<span class="chev" class:open={questSheet}>⌄</span>
+        {#if app.questNews.length}<span class="news-dot"></span>{/if}
+      </button>
+    {:else}
+      <h1 class="bar-title">{barTitle}</h1>
+    {/if}
     <button
       class="icon-btn"
       class:on={app.view === 'settings'}
@@ -239,19 +247,6 @@
     {:else if app.view === 'orbitHome'}
       {#if quest}
       <div class="quest-hud">
-        {#if app.quests.length > 1}
-          <div class="quest-picker">
-            {#each app.quests as q (q.id)}
-              <button
-                class="tag slim"
-                class:active={q.id === quest.id}
-                onclick={() => app.selectQuest(q.id)}
-              >
-                {q.name}{app.questNews.includes(q.id) ? ' •' : ''}
-              </button>
-            {/each}
-          </div>
-        {/if}
         <p class="goal">{quest.goal} · {orbitDone} / {quest.setup.levelCount}</p>
         <div class="parts">
           {#each quest.collectible.partGlyphs as glyph, p (p)}
@@ -432,6 +427,28 @@
     {/if}
   </main>
 
+  {#if questSheet}
+    <div class="quest-sheet">
+      {#each app.quests as q (q.id)}
+        {@const summary = app.questSummaries.find((x) => x.id === q.id)}
+        <button
+          class="quest-row"
+          class:current={q.id === quest?.id}
+          onclick={() => {
+            void app.selectQuest(q.id);
+            questSheet = false;
+          }}
+        >
+          <span class="quest-row-name">{q.name}</span>
+          <span class="quest-row-meta">
+            {summary?.completed.length ?? 0} / {q.levels.length}
+            {#if app.questNews.includes(q.id)} · new{/if}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
   {#if pwa.updateReady}
     <div class="notice" role="status">
       <span>A new edition of Reign is ready.</span>
@@ -582,11 +599,79 @@
     color: var(--ink-soft);
   }
 
-  .quest-picker {
+  .switcher {
+    flex: 1;
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .chev {
+    font-size: 15px;
+    color: var(--ink-soft);
+    transition: transform 180ms ease;
+  }
+
+  .chev.open {
+    transform: rotate(180deg);
+  }
+
+  .news-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+
+  .quest-sheet {
+    position: absolute;
+    top: calc(max(10px, env(safe-area-inset-top)) + 46px);
+    left: 12px;
+    right: 12px;
+    z-index: 12;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--paper);
+    border: 1px solid var(--ink-faint);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.34);
+  }
+
+  .quest-row {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--ink-faint);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .quest-row:last-child {
+    border-bottom: 0;
+  }
+
+  .quest-row.current {
+    background: var(--paper-raised);
+  }
+
+  .quest-row-name {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  .quest-row-meta {
+    font-size: 12.5px;
+    color: var(--ink-soft);
   }
 
   .dock {

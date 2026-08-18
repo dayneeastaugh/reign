@@ -19,34 +19,83 @@
     onSelect: (i: number) => void;
   } = $props();
 
-  const PITCH = 88;
-  const BOTTOM_PAD = 165;
-  const TOP_PAD = 110;
+  const BOTTOM_PAD = 150;
+  const TOP_PAD = 120;
+  /** Ordinary stops sit closer together; a milestone earns room to breathe. */
+  const STEP_WAYPOINT = 64;
+  const STEP_MILESTONE = 104;
+  /** Keeps a node and its plaque clear of the edges. */
+  const SIDE_MARGIN = 56;
 
   let W = $state(360);
-  const AMPLITUDE = $derived(Math.min(120, W * 0.31));
-
-  const height = $derived(BOTTOM_PAD + (levels.length - 1) * PITCH + TOP_PAD);
-
-  const points = $derived(
-    levels.map((_, i) => ({
-      x: W / 2 + AMPLITUDE * Math.sin(i * 0.72 + 0.6),
-      y: height - BOTTOM_PAD - i * PITCH,
-    })),
-  );
+  const AMPLITUDE = $derived(Math.max(44, Math.min(124, W * 0.33)));
 
   const lastIndex = $derived(levels.length - 1);
 
-  /**
-   * Visual hierarchy: stations and every fifth world (plus the first and last)
-   * become large named bodies; the rest are waypoints on the route. Keeps a
-   * 50-level journey from reading as fifty identical circles.
-   */
   function tierOf(i: number): 'station' | 'world' | 'waypoint' {
     if (levels[i].special) return 'station';
     if (i === 0 || i === lastIndex || (i + 1) % 5 === 0) return 'world';
     return 'waypoint';
   }
+
+  /** Distance from the previous stop, so the route has rhythm rather than a beat. */
+  const steps = $derived(
+    levels.map((_, i) =>
+      i === 0 ? 0 : tierOf(i) === 'waypoint' && tierOf(i - 1) === 'waypoint'
+        ? STEP_WAYPOINT
+        : STEP_MILESTONE,
+    ),
+  );
+
+  const totalRise = $derived(steps.reduce((a, b) => a + b, 0));
+  const height = $derived(BOTTOM_PAD + totalRise + TOP_PAD);
+
+  /**
+   * A triangle sweep sets the side, so the route always crosses the full width
+   * instead of drifting to one edge as summed sines did; a small sine on top
+   * keeps it from marching. Clamped so a node and its plaque stay in frame.
+   */
+  const points = $derived.by(() => {
+    let y = height - BOTTOM_PAD;
+    return levels.map((_, i) => {
+      y -= steps[i];
+      const t = (i / 3.5) % 2;
+      const sweep = t < 1 ? t * 2 - 1 : 3 - t * 2;
+      const wander = 0.86 * sweep + 0.14 * Math.sin(i * 1.7 + 0.6);
+      const half = Math.max(0, W / 2 - SIDE_MARGIN);
+      return { x: W / 2 + Math.max(-half, Math.min(half, AMPLITUDE * wander)), y };
+    });
+  });
+
+  /**
+   * Catmull-Rom through the stops, emitted as cubic segments. A polyline kinked
+   * at every node; a curve reads as a route.
+   */
+  function smoothPath(pts: Array<{ x: number; y: number }>): string {
+    if (pts.length < 2) return '';
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] ?? pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] ?? p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6;
+      const c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6;
+      const c2y = p2.y - (p3.y - p1.y) / 6;
+      d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+    }
+    return d;
+  }
+
+  /** Where the ground changes — the route passing from one room into the next. */
+  const dividers = $derived.by(() =>
+    levels
+      .map((level, i) => ({ i, variant: level.variant ?? '' }))
+      .filter(({ i, variant }) => i > 0 && variant && variant !== (levels[i - 1].variant ?? ''))
+      .filter(({ i }) => !levels[i].special && !levels[i - 1].special)
+      .map(({ i }) => (points[i].y + points[i - 1].y) / 2),
+  );
 
   function makeRng(seed: number) {
     let a = seed >>> 0;
@@ -116,19 +165,8 @@
     return { stars, twinkles, clouds, galaxies, constellations, asteroids };
   });
 
-  const pathBehind = $derived(
-    points
-      .slice(0, Math.min(currentIndex, lastIndex) + 1)
-      .map((p) => `${p.x},${p.y}`)
-      .join(' '),
-  );
-
-  const pathAhead = $derived(
-    points
-      .slice(Math.min(currentIndex, lastIndex))
-      .map((p) => `${p.x},${p.y}`)
-      .join(' '),
-  );
+  const pathBehind = $derived(smoothPath(points.slice(0, Math.min(currentIndex, lastIndex) + 1)));
+  const pathAhead = $derived(smoothPath(points.slice(Math.min(currentIndex, lastIndex))));
 
   function worldSize(i: number): number {
     if (i === lastIndex) return 74;
@@ -302,8 +340,18 @@
     <div class="launchpad"></div>
 
     <svg class="paths" width={W} {height} aria-hidden="true">
-      <polyline
-        points={pathAhead}
+      {#each dividers as y, i (i)}
+        <g opacity="0.5">
+          <line x1="26" y1={y} x2={W / 2 - 12} y2={y} stroke={map.pathAhead} stroke-width="0.75" />
+          <line x1={W / 2 + 12} y1={y} x2={W - 26} y2={y} stroke={map.pathAhead} stroke-width="0.75" />
+          <path
+            d="M {W / 2} {y - 4} L {W / 2 + 4} {y} L {W / 2} {y + 4} L {W / 2 - 4} {y} Z"
+            fill={map.pathAhead}
+          />
+        </g>
+      {/each}
+      <path
+        d={pathAhead}
         fill="none"
         stroke={map.pathAhead}
         stroke-width="1.5"
@@ -311,13 +359,13 @@
         stroke-linecap="round"
         opacity="0.7"
       />
-      <polyline
-        points={pathBehind}
+      <path
+        d={pathBehind}
         fill="none"
         stroke={map.pathBehind}
-        stroke-width="2"
+        stroke-width="2.5"
         stroke-linecap="round"
-        opacity="0.55"
+        opacity="0.6"
       />
     </svg>
 
@@ -395,9 +443,11 @@
           </button>
         {/if}
 
-        <span class="stars" class:dim={locked} class:tiny={tier === 'waypoint'}>
-          {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
-        </span>
+        {#if stars > 0}
+          <span class="stars" class:tiny={tier === 'waypoint'}>
+            {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
+          </span>
+        {/if}
 
         {#if tier !== 'waypoint'}
           <span class="label" class:left={labelLeft} class:muted={locked}>{level.name}</span>
