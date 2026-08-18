@@ -18,6 +18,12 @@ export interface PlayfieldVariantDef {
   xColor: string;
   chromeColor: string;
   chromeSoft: string;
+  /**
+   * Room artwork for the strip below the board, relative to the content root.
+   * Decoration only — it must never carry information the player needs, since
+   * it arrives over the content channel and a fresh install plays without it.
+   */
+  roomArt?: string;
 }
 
 /** Decoration for the journey map. The layout is generated; the theme paints it. */

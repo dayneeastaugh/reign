@@ -77,7 +77,7 @@
   }
 </script>
 
-<div class="app" style={variantStyle}>
+<div class="app" class:roomy={!!app.variant?.roomArt} style={variantStyle}>
   <header class="appbar">
     <span class="mark" aria-hidden="true">♛</span>
     {#if app.view === 'orbitHome' && app.quests.length > 1}
@@ -352,6 +352,16 @@
         </div>
 
         <div class="board-zone">
+          {#if app.variant?.roomArt}
+            <div
+              class="room-art"
+              style="background-image:url({contentUrl(app.variant.roomArt)})"
+              aria-hidden="true"
+            ></div>
+            <div class="room-scrim" aria-hidden="true"></div>
+            <div class="room-vignette" aria-hidden="true"></div>
+          {/if}
+          <div class="board-frame" class:framed={!!app.variant?.roomArt}>
           <Board
             puzzle={app.game.puzzle}
             marks={app.marks}
@@ -370,6 +380,7 @@
               <button class="tag" onclick={() => app.togglePause()}>Resume</button>
             </div>
           {/if}
+          </div>
         </div>
 
         {#if app.solved}
@@ -911,6 +922,82 @@
 
   .board-zone {
     position: relative;
+  }
+
+  /*
+   * The room: painted art below the board, a lit frame around it, and a
+   * vignette drawing the eye inward. All three are decoration — the board
+   * stays the brightest, highest-contrast thing on the screen.
+   */
+  .hint-line,
+  .board-code,
+  .solved {
+    position: relative;
+    z-index: 1;
+  }
+
+  .app.roomy .hint-line {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  }
+
+  .room-art {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 100vw;
+    max-width: 100vw;
+    height: min(30vh, 178px);
+    transform: translateX(-50%);
+    background-position: top center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0.92;
+    pointer-events: none;
+    /* Feathered at both ends so the crop seam never shows as an edge. */
+    -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 68%, transparent);
+    mask-image: linear-gradient(transparent, #000 12%, #000 68%, transparent);
+  }
+
+  /* Keeps the rule readable where it crosses the brightest part of the room. */
+  .room-scrim {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 100vw;
+    height: min(30vh, 178px);
+    transform: translateX(-50%);
+    pointer-events: none;
+    background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.1) 42%, transparent);
+  }
+
+  .room-vignette {
+    position: absolute;
+    left: 50%;
+    top: -14vh;
+    width: 100vw;
+    height: 74vh;
+    transform: translateX(-50%);
+    pointer-events: none;
+    background: radial-gradient(
+      68% 52% at 50% 42%,
+      transparent 38%,
+      rgba(0, 0, 0, 0.28) 78%,
+      rgba(0, 0, 0, 0.5)
+    );
+  }
+
+  .board-frame {
+    position: relative;
+  }
+
+  .board-frame.framed {
+    padding: 5px;
+    border-radius: 7px;
+    background: linear-gradient(150deg, #d8bd85, #9c7f45 42%, #6d5730);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 246, 224, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+      0 8px 22px rgba(0, 0, 0, 0.5);
   }
 
   .pause-cover {
