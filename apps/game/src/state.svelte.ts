@@ -79,6 +79,10 @@ export class AppState {
   paused = $state(false);
   undoDepth = $state(0);
   hintsUsed = $state(0);
+  /** The queen the player placed most recently, for the plain hint's verdict. */
+  lastQueenCell: number | null = null;
+  /** The plain (non-progressive) hint's one-line verdict. */
+  simpleHint = $state<'empty' | 'ok' | 'bad' | null>(null);
   activeHint = $state<ActiveHint | null>(null);
   view = $state<View>('quick');
   sessionMode = $state<'quick' | 'tournament'>('quick');
@@ -465,12 +469,15 @@ export class AppState {
     // A tap makes the cell the player's own, so auto-mark no longer owns it.
     this.autoCells[i] = false;
     if (next === QUEEN || prev === QUEEN) this.queenActions++;
+    if (next === QUEEN) this.lastQueenCell = i;
+    if (prev === QUEEN && this.lastQueenCell === i) this.lastQueenCell = null;
     if (next === QUEEN && this.settings.autoX) this.autoX(i);
     if (prev === QUEEN) this.withdrawAutoX();
     if (next === QUEEN) sound.queen();
     else if (next === X) sound.mark();
     else sound.lift();
     this.activeHint = null;
+    this.simpleHint = null;
     this.afterChange();
   }
 
@@ -573,6 +580,12 @@ export class AppState {
   );
 
   hintText = $derived.by(() => {
+    if (this.simpleHint) {
+      if (this.simpleHint === 'empty') return 'Place a ♛ first — Hint will tell you how it stands.';
+      return this.simpleHint === 'ok'
+        ? 'Your latest ♛ is in the right place.'
+        : 'Your latest ♛ isn’t in the right place.';
+    }
     const active = this.activeHint;
     if (!active) return '';
     const { hint, stage } = active;
@@ -615,6 +628,8 @@ export class AppState {
     }
   });
 
+  hintOpen = $derived(!!this.activeHint || !!this.simpleHint);
+
   /** How deep the player is in the current hint, for the depth pips. */
   hintProgress = $derived.by(() => {
     const a = this.activeHint;
@@ -630,6 +645,25 @@ export class AppState {
   requestHint(): void {
     if (!this.game || this.solved || this.paused) return;
     sound.hint();
+    if (!this.settings.progressiveHints) {
+      if (this.simpleHint) {
+        this.simpleHint = null;
+        return;
+      }
+      const queens = this.queenCells;
+      if (queens.length === 0) {
+        this.simpleHint = 'empty';
+        return;
+      }
+      const n = this.game.puzzle.size;
+      const solutionCells = new Set(this.game.solution.map((c, r) => r * n + c));
+      const cell =
+        this.lastQueenCell !== null && this.marks[this.lastQueenCell] === QUEEN
+          ? this.lastQueenCell
+          : queens[queens.length - 1];
+      this.simpleHint = solutionCells.has(cell) ? 'ok' : 'bad';
+      return;
+    }
     const active = this.activeHint;
     if (!active) {
       const hint = nextHint(this.game, $state.snapshot(this.marks));

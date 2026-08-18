@@ -7,6 +7,8 @@ export interface Settings {
   /** Region textures, for when colour alone is hard to tell apart. */
   patterns: boolean;
   sound: boolean;
+  /** Walkthrough hints (locate → detail → apply). Off = verdict only. */
+  progressiveHints: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -14,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showConflicts: true,
   patterns: false,
   sound: true,
+  progressiveHints: false,
 };
 
 export interface SavedGame {

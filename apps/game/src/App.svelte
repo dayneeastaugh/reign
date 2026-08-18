@@ -113,7 +113,7 @@
     {:else if app.view === 'settings'}
       <section class="sheet">
         <h2 class="section-title">Preferences</h2>
-        {#each [{ key: 'autoX', label: 'Auto-mark', note: 'Cross off cells a new ♛ rules out' }, { key: 'showConflicts', label: 'Highlight clashes', note: 'Colour ♛ that attack each other' }, { key: 'patterns', label: 'Region patterns', note: 'Give each colour a texture as well' }, { key: 'sound', label: 'Sound', note: 'Soft paper and stamp sounds' }] as const as row (row.key)}
+        {#each [{ key: 'autoX', label: 'Auto-mark', note: 'Cross off cells a new ♛ rules out' }, { key: 'showConflicts', label: 'Highlight clashes', note: 'Colour ♛ that attack each other' }, { key: 'patterns', label: 'Region patterns', note: 'Give each colour a texture as well' }, { key: 'sound', label: 'Sound', note: 'Soft paper and stamp sounds' }, { key: 'progressiveHints', label: 'Guided hints', note: 'Let Hint walk from a check to the exact step' }] as const as row (row.key)}
           <div class="pref">
             <div class="pref-text">
               <p class="pref-label">{row.label}</p>
@@ -342,7 +342,7 @@
           </button>
           <button
             class="tag slim hint"
-            class:open={!!app.activeHint}
+            class:open={app.hintOpen}
             onclick={() => app.requestHint()}
             disabled={app.paused || app.solved}
           >
@@ -414,7 +414,7 @@
               <button class="tag primary" onclick={() => app.newGame()}>Play again</button>
             {/if}
           </div>
-        {:else if app.activeHint}
+        {:else if app.hintText}
           <div class="hint-message">
             <p class="hint-text">{app.hintText}</p>
             {#if app.hintProgress}
