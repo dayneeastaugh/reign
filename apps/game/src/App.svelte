@@ -30,7 +30,13 @@
   });
 
   $effect(() => {
-    document.body.style.backgroundColor = app.variant ? app.variant.boardLine : '';
+    // The browser paints the status bar from theme-color, not from our shell,
+    // so both must follow the active screen or the quest keeps a cream cap.
+    const bar = app.variant ? app.variant.boardLine : '';
+    document.body.style.backgroundColor = bar;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', bar || '#f6f1e7');
   });
 
   const timeLabel = $derived(
@@ -247,7 +253,7 @@
     {:else if app.view === 'orbitHome'}
       {#if quest}
       <div class="quest-hud">
-        <p class="goal">{quest.goal} · {orbitDone} / {quest.setup.levelCount}</p>
+        <p class="goal">{quest.goal} · {orbitDone}/{quest.setup.levelCount}</p>
         <div class="parts">
           {#each quest.collectible.partGlyphs as glyph, p (p)}
             {@const path = quest.collectible.partPaths?.[p]}
@@ -599,10 +605,22 @@
   .quest-hud {
     width: 100%;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding: 8px 16px;
+  }
+
+  .quest-hud .part {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+
+  .quest-hud .part svg {
+    width: 16px;
+    height: 16px;
   }
 
   .goal {

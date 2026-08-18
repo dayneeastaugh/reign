@@ -184,7 +184,7 @@ const quest: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'clockwork-post',
   name: 'The Clockwork Post',
-  version: 10,
+  version: 11,
   goal: 'Rebuild the letter scale',
   setup: {
     levelCount: LEVEL_COUNT,
@@ -240,51 +240,54 @@ const quest: TournamentDef = {
       style: 'interior',
       doorArt: 'assets/clockwork-post/walls/front-door.jpg',
       loftArt: 'assets/clockwork-post/walls/loft.jpg',
+      // The shipped image is cropped (8,2) to shave the artwork's own frame,
+      // so every coordinate below is authored in original strip space and
+      // shifted here.
       mural: {
         image: 'assets/clockwork-post/map.jpg',
-        width: 420,
-        height: 1032,
+        width: 411,
+        height: 1028,
         // Route order up the building; discs cover the painted ones, halls
         // cover the painted junction tiles, parcels sit on painted crates,
         // and the wax seal at the top keeps the painting's own face.
         anchors: [
-          { x: 224, y: 920 },                    // 1  The Slot — on the doormat pedestal
-          { x: 150, y: 908, kind: 'parcel' },    // 2  on the intake table
-          { x: 272, y: 876 },                    // 3  painted "2"
-          { x: 273, y: 819 },                    // 4  painted "6"
-          { x: 275, y: 776 },                    // 5  painted "7"
-          { x: 211, y: 761, kind: 'hall' },      // 6  Sorting Hall I — painted "8"
-          { x: 210, y: 719 },                    // 7  painted "10"
-          { x: 214, y: 686 },                    // 8  painted "12"
-          { x: 318, y: 683, kind: 'parcel' },    // 9  on the sorting crates
-          { x: 211, y: 644, kind: 'hall' },      // 10 Sorting Hall II — painted tile
-          { x: 273, y: 607 },                    // 11 painted "11"
-          { x: 273, y: 564 },                    // 12 painted "14"
-          { x: 209, y: 550 },                    // 13 painted "16"
-          { x: 209, y: 509 },                    // 14 painted "19", lower
-          { x: 216, y: 472 },                    // 15 painted "19", upper
-          { x: 298, y: 477, kind: 'parcel' },    // 16 on the franking crates
-          { x: 332, y: 484, kind: 'parcel' },    // 17 beside them
-          { x: 216, y: 434, kind: 'hall' },      // 18 Sorting Hall III — painted tile
-          { x: 273, y: 395 },                    // 19 painted "20"
-          { x: 273, y: 352 },                    // 20 painted "21"
-          { x: 244, y: 332 },                    // 21 on the top run
-          { x: 211, y: 333 },                    // 22 painted "22"
-          { x: 161, y: 291 },                    // 23 painted "23"
-          { x: 333, y: 276, kind: 'parcel' },    // 24 on the restante sacks
-          { x: 214, y: 254, kind: 'hall' },      // 25 Sorting Hall IV — painted tile
-          { x: 274, y: 252 },                    // 26 on the elbow
-          { x: 274, y: 212 },                    // 27 painted "26"
-          { x: 275, y: 169 },                    // 28 painted "27"
-          { x: 209, y: 148 },                    // 29 painted "28"
-          { x: 218, y: 84, kind: 'seal' },       // 30 The Golden Scale — the wax
+          { x: 216, y: 918 },                    // 1  The Slot — on the doormat pedestal
+          { x: 142, y: 906, kind: 'parcel' },    // 2  on the intake table
+          { x: 264, y: 874 },                    // 3  painted "2"
+          { x: 265, y: 817 },                    // 4  painted "6"
+          { x: 267, y: 774 },                    // 5  painted "7"
+          { x: 203, y: 759, kind: 'hall' },      // 6  Sorting Hall I — painted "8"
+          { x: 202, y: 717 },                    // 7  painted "10"
+          { x: 206, y: 684 },                    // 8  painted "12"
+          { x: 310, y: 681, kind: 'parcel' },    // 9  on the sorting crates
+          { x: 203, y: 642, kind: 'hall' },      // 10 Sorting Hall II — painted tile
+          { x: 265, y: 605 },                    // 11 painted "11"
+          { x: 265, y: 562 },                    // 12 painted "14"
+          { x: 201, y: 548 },                    // 13 painted "16"
+          { x: 201, y: 507 },                    // 14 painted "19", lower
+          { x: 208, y: 470 },                    // 15 painted "19", upper
+          { x: 290, y: 475, kind: 'parcel' },    // 16 on the franking crates
+          { x: 324, y: 482, kind: 'parcel' },    // 17 beside them
+          { x: 208, y: 432, kind: 'hall' },      // 18 Sorting Hall III — painted tile
+          { x: 265, y: 393 },                    // 19 painted "20"
+          { x: 265, y: 350 },                    // 20 painted "21"
+          { x: 236, y: 330 },                    // 21 on the top run
+          { x: 203, y: 331 },                    // 22 painted "22"
+          { x: 153, y: 289 },                    // 23 painted "23"
+          { x: 325, y: 274, kind: 'parcel' },    // 24 on the restante sacks
+          { x: 206, y: 252, kind: 'hall' },      // 25 Sorting Hall IV — painted tile
+          { x: 266, y: 250 },                    // 26 on the elbow
+          { x: 266, y: 210 },                    // 27 painted "26"
+          { x: 267, y: 167 },                    // 28 painted "27"
+          { x: 201, y: 146 },                    // 29 painted "28"
+          { x: 210, y: 82, kind: 'seal' },       // 30 The Golden Scale — the wax
         ],
         // The rail's painted room-start numbers, updated to the real ones.
         covers: [
-          { x: 57, y: 634, text: '7' },
-          { x: 55, y: 424, text: '15' },
-          { x: 52, y: 244, text: '23' },
-          { x: 52, y: 75, text: '29' },
+          { x: 49, y: 632, text: '7' },
+          { x: 47, y: 422, text: '15' },
+          { x: 44, y: 242, text: '23' },
+          { x: 44, y: 73, text: '29' },
         ],
       },
       rooms: {

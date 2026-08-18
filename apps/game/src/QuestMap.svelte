@@ -837,7 +837,7 @@
               {#if done}<span class="seal-ring" style="border-color:{map.pathBehind}"></span>{/if}
             </button>
           {:else if kind === 'hall'}
-            <button class="press-tile" class:lit={done} class:locked style="width:{d + 8}px;height:{d + 8}px" disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
+            <button class="press-tile" class:lit={done} class:locked style="width:{d + 2}px;height:{d + 2}px" disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
               <span class="tile-lever"><span class="tile-knob"></span></span>
               {done ? partGlyphs[level.partIndex ?? 0] : i + 1}
             </button>
@@ -1614,6 +1614,17 @@
     font-size: 13px;
   }
 
+  .mural-disc.locked {
+    border-color: #7d7264;
+    background: radial-gradient(circle at 36% 30%, #b3a893, #918673 62%, #746b5a);
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.4);
+    opacity: 1;
+  }
+
+  .mural-disc.locked .num {
+    color: #3d372c;
+  }
+
   .mural-parcel {
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
   }
@@ -1645,7 +1656,14 @@
   }
 
   .press-tile.locked {
-    filter: saturate(0.35) brightness(0.6);
+    border-color: #7d7264;
+    background: linear-gradient(150deg, #b3a893, #948a76 55%, #7a715f);
+    color: #3d372c;
+  }
+
+  .press-tile.locked .tile-lever,
+  .press-tile.locked .tile-knob {
+    background: #7d7264;
   }
 
   .tile-lever {
