@@ -161,7 +161,7 @@ const quest: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'clockwork-post',
   name: 'The Clockwork Post',
-  version: 3,
+  version: 4,
   goal: 'Rebuild the letter scale',
   setup: {
     levelCount: LEVEL_COUNT,
@@ -214,6 +214,7 @@ const quest: TournamentDef = {
       // A canister whisking through a pneumatic tube.
       cometColor: 'rgba(255, 234, 190, 0.7)',
       vehicleGlyph: '✉',
+      style: 'interior',
     },
   },
   levels,

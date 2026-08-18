@@ -31,6 +31,8 @@
   const AMPLITUDE = $derived(Math.max(44, Math.min(124, W * 0.33)));
 
   const lastIndex = $derived(levels.length - 1);
+  /** A building, not a sky: different shapes throughout, not a recolour. */
+  const interior = $derived(map.style === 'interior');
 
   function tierOf(i: number): 'station' | 'world' | 'waypoint' {
     if (levels[i].special) return 'station';
@@ -283,37 +285,112 @@
       ></div>
     {/each}
 
+    {#if interior}
+      {#each decor.galaxies as g, i (i)}
+        <!-- A wall clock, ticking somewhere above the benches -->
+        <svg
+          class="clockface"
+          style="left:{g.x}px;top:{g.y}px"
+          width={g.size * 0.6}
+          height={g.size * 0.6}
+          viewBox="0 0 40 40"
+          aria-hidden="true"
+        >
+          <circle cx="20" cy="20" r="17" fill="none" stroke={map.galaxyColor} stroke-width="1.4" />
+          <circle cx="20" cy="20" r="14" fill="none" stroke={map.galaxyColor} stroke-width="0.5" />
+          {#each [0, 3, 6, 9] as tick (tick)}
+            <line
+              x1={20 + 12 * Math.sin((tick / 12) * 2 * Math.PI)}
+              y1={20 - 12 * Math.cos((tick / 12) * 2 * Math.PI)}
+              x2={20 + 15 * Math.sin((tick / 12) * 2 * Math.PI)}
+              y2={20 - 15 * Math.cos((tick / 12) * 2 * Math.PI)}
+              stroke={map.galaxyColor}
+              stroke-width="1.2"
+            />
+          {/each}
+          <line x1="20" y1="20" x2="20" y2="11" stroke={map.galaxyColor} stroke-width="1.3" />
+          <line x1="20" y1="20" x2="26" y2="23" stroke={map.galaxyColor} stroke-width="1.1" />
+        </svg>
+      {/each}
+    {:else}
     {#each decor.galaxies as g, i (i)}
       <div class="galaxy" style="left:{g.x}px;top:{g.y}px;width:{g.size}px;height:{g.size * 0.5}px;transform:rotate({g.tilt}deg)">
         <span class="galaxy-arm" style="background:radial-gradient(closest-side, {map.galaxyColor ?? 'rgba(206,214,245,0.45)'}, transparent 72%)"></span>
         <span class="galaxy-core" style="background:radial-gradient(closest-side, {map.starColors[1]}, transparent 70%)"></span>
       </div>
     {/each}
+    {/if}
 
     <svg class="deepfield" width={W} {height} aria-hidden="true">
       {#each decor.constellations as pts, i (i)}
-        <polyline
-          points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
-          fill="none"
-          stroke={map.constellationColor ?? 'rgba(205,214,239,0.3)'}
-          stroke-width="0.8"
-          stroke-dasharray="2 3"
-        />
-        {#each pts as p, j (j)}
-          <circle cx={p.x} cy={p.y} r="1.5" fill={map.constellationColor ?? 'rgba(205,214,239,0.5)'} />
-        {/each}
+        {#if interior}
+          <!-- Pneumatic tube runs: right angles and couplings, not star lines -->
+          <path
+            d={pts
+              .map((p, j) =>
+                j === 0 ? `M ${p.x} ${p.y}` : `L ${pts[j - 1].x} ${p.y} L ${p.x} ${p.y}`,
+              )
+              .join(' ')}
+            fill="none"
+            stroke={map.constellationColor ?? 'rgba(226,204,160,0.32)'}
+            stroke-width="2"
+            stroke-linecap="square"
+            stroke-linejoin="miter"
+          />
+          {#each pts as p, j (j)}
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r="3"
+              fill="none"
+              stroke={map.constellationColor ?? 'rgba(226,204,160,0.32)'}
+              stroke-width="1.4"
+            />
+          {/each}
+        {:else}
+          <polyline
+            points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
+            fill="none"
+            stroke={map.constellationColor ?? 'rgba(205,214,239,0.3)'}
+            stroke-width="0.8"
+            stroke-dasharray="2 3"
+          />
+          {#each pts as p, j (j)}
+            <circle cx={p.x} cy={p.y} r="1.5" fill={map.constellationColor ?? 'rgba(205,214,239,0.5)'} />
+          {/each}
+        {/if}
       {/each}
       {#each decor.asteroids as cluster, i (i)}
         {#each cluster as a, j (j)}
-          <ellipse
-            cx={a.x}
-            cy={a.y}
-            rx={a.r}
-            ry={a.r * 0.72}
-            fill={map.asteroidColor ?? '#6b6f85'}
-            opacity="0.7"
-            transform="rotate({a.rot} {a.x} {a.y})"
-          />
+          {#if interior}
+            <!-- A letter adrift between floors -->
+            <g transform="rotate({a.rot} {a.x} {a.y})" opacity="0.65">
+              <rect
+                x={a.x - a.r * 1.7}
+                y={a.y - a.r * 1.1}
+                width={a.r * 3.4}
+                height={a.r * 2.2}
+                fill={map.asteroidColor ?? '#6b5a44'}
+                rx="0.6"
+              />
+              <path
+                d="M {a.x - a.r * 1.7} {a.y - a.r * 1.1} L {a.x} {a.y + a.r * 0.25} L {a.x + a.r * 1.7} {a.y - a.r * 1.1}"
+                fill="none"
+                stroke={map.sky[0]}
+                stroke-width="0.7"
+              />
+            </g>
+          {:else}
+            <ellipse
+              cx={a.x}
+              cy={a.y}
+              rx={a.r}
+              ry={a.r * 0.72}
+              fill={map.asteroidColor ?? '#6b6f85'}
+              opacity="0.7"
+              transform="rotate({a.rot} {a.x} {a.y})"
+            />
+          {/if}
         {/each}
       {/each}
     </svg>
@@ -333,11 +410,21 @@
       >
     {/each}
 
-    <div
-      class="home-body"
-      style="width:{W * 1.25}px;height:{W * 1.25}px;bottom:{-W * 1.02}px;background:radial-gradient(circle at 32% 18%, {map.homePalette[0]}, {map.homePalette[1]} 45%, {map.homePalette[2]} 78%, {map.homePalette[2]})"
-    ></div>
-    <div class="launchpad"></div>
+    {#if interior}
+      <div class="doorway">
+        <span class="door-panel" style="background:linear-gradient({map.homePalette[1]}, {map.homePalette[2]})"></span>
+        <span class="door-plate" style="background:linear-gradient({map.homePalette[0]}, {map.homePalette[1]})">
+          <span class="door-slot" style="background:{map.sky[0]}"></span>
+        </span>
+        <span class="door-mat" style="background:{map.lockedPalette[0]}"></span>
+      </div>
+    {:else}
+      <div
+        class="home-body"
+        style="width:{W * 1.25}px;height:{W * 1.25}px;bottom:{-W * 1.02}px;background:radial-gradient(circle at 32% 18%, {map.homePalette[0]}, {map.homePalette[1]} 45%, {map.homePalette[2]} 78%, {map.homePalette[2]})"
+      ></div>
+      <div class="launchpad"></div>
+    {/if}
 
     <svg class="paths" width={W} {height} aria-hidden="true">
       {#each dividers as y, i (i)}
@@ -383,12 +470,40 @@
       <div class="node-abs" class:big={tier !== 'waypoint'} style="left:{p.x}px;top:{p.y}px">
         {#if current}<span class="pulse"></span>{/if}
 
-        {#if tier === 'station'}
+        {#if tier === 'station' && interior}
+          <!-- A franking counter: two benches and the press between them -->
+          <button class="counter" class:lit={done} disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
+            <span class="bench left"></span>
+            <span class="bench right"></span>
+            <span class="lever"></span>
+            <span class="press">{done ? partGlyphs[level.partIndex ?? 0] : i + 1}</span>
+          </button>
+        {:else if tier === 'station'}
           <button class="station" class:lit={done} disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
             <span class="mast"></span>
             <span class="panel left"></span>
             <span class="panel right"></span>
             <span class="core">{done ? partGlyphs[level.partIndex ?? 0] : i + 1}</span>
+          </button>
+        {:else if tier === 'world' && interior}
+          {@const size = worldSize(i)}
+          <!-- A parcel waiting on the shelf, twine and all -->
+          <button
+            class="parcel"
+            class:locked
+            style="width:{size}px;height:{size * 0.78}px;
+              background:linear-gradient({pal[0]}, {pal[1]});border-color:{pal[2]}"
+            disabled={locked}
+            onclick={() => onSelect(i)}
+            aria-label={aria}
+          >
+            <span class="twine v" style="background:{pal[2]}"></span>
+            <span class="twine h" style="background:{pal[2]}"></span>
+            {#if i === lastIndex}
+              <span class="wax" style="background:{map.pathBehind}">{map.finalGlyph}</span>
+            {:else}
+              <span class="ticket" style="background:{pal[0]};color:{pal[2]}">{i + 1}</span>
+            {/if}
           </button>
         {:else if tier === 'world'}
           {@const size = worldSize(i)}
@@ -429,6 +544,18 @@
             {/if}
             <span class="terminator"></span>
             <span class="num big-num" class:dark={done || current}>{i + 1}</span>
+          </button>
+        {:else if interior}
+          <!-- An ordinary stop is a stamp, perforated edge and all -->
+          <button
+            class="stamp"
+            class:done
+            class:locked
+            disabled={locked}
+            onclick={() => onSelect(i)}
+            aria-label={aria}
+          >
+            <span class="num">{i + 1}</span>
           </button>
         {:else}
           <button
@@ -902,6 +1029,200 @@
     50% {
       transform: translateY(-3px);
     }
+  }
+
+  .clockface {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  /* The front door the letter arrives through: panel, brass slot, mat. */
+  .doorway {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 104px;
+  }
+
+  .door-panel {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 0;
+    bottom: 22px;
+    border-radius: 6px 6px 0 0;
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.22);
+    opacity: 0.9;
+  }
+
+  .door-plate {
+    position: absolute;
+    left: 50%;
+    top: 26px;
+    width: 108px;
+    height: 30px;
+    border-radius: 4px;
+    transform: translateX(-50%);
+    display: grid;
+    place-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  }
+
+  .door-slot {
+    width: 78px;
+    height: 10px;
+    border-radius: 2px;
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.55);
+  }
+
+  .door-mat {
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    bottom: 0;
+    height: 22px;
+    border-radius: 3px;
+    opacity: 0.85;
+  }
+
+  /* Stamp: an ordinary stop */
+  .stamp {
+    width: 28px;
+    height: 24px;
+    border-radius: 3px;
+    border: 1.5px dashed var(--rim);
+    background: linear-gradient(var(--locked-a), var(--locked-b));
+  }
+
+  .stamp.done {
+    border: 1.5px dashed var(--earned);
+    background: linear-gradient(var(--earned), var(--locked-a));
+  }
+
+  .stamp.locked {
+    opacity: 0.5;
+  }
+
+  .stamp.done .num {
+    color: #2b2010;
+  }
+
+  /* Parcel: a milestone */
+  .parcel {
+    position: relative;
+    border: 1.5px solid;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .parcel.locked {
+    filter: grayscale(0.5) brightness(0.62);
+    box-shadow: none;
+  }
+
+  .twine {
+    position: absolute;
+    opacity: 0.55;
+  }
+
+  .twine.v {
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    transform: translateX(-50%);
+  }
+
+  .twine.h {
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    transform: translateY(-50%);
+  }
+
+  .ticket {
+    position: relative;
+    padding: 1px 7px;
+    border-radius: 2px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .wax {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    color: #2b2010;
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Franking counter: a sorting hall */
+  .counter {
+    width: 78px;
+    height: 34px;
+  }
+
+  .bench {
+    position: absolute;
+    bottom: 4px;
+    width: 26px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--locked-b);
+    border: 1px solid var(--rim);
+  }
+
+  .bench.left {
+    left: 0;
+  }
+
+  .bench.right {
+    right: 0;
+  }
+
+  .counter.lit .bench {
+    background: linear-gradient(var(--earned), var(--locked-a));
+    border-color: var(--earned);
+  }
+
+  .lever {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 11px;
+    background: var(--rim);
+    transform: translateX(-50%) rotate(14deg);
+    transform-origin: bottom center;
+  }
+
+  .press {
+    position: relative;
+    width: 30px;
+    height: 22px;
+    border-radius: 3px;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    background: linear-gradient(var(--locked-a), var(--locked-b));
+    border: 1.5px solid var(--rim);
+    color: var(--node-ink);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  }
+
+  .counter.lit .press {
+    background: linear-gradient(var(--earned), var(--earned));
+    border-color: var(--earned);
+    color: #2b2010;
   }
 
   .rocket {

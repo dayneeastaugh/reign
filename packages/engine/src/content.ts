@@ -48,6 +48,12 @@ export interface MapThemeDef {
    * quests where a rocket would be absurd — a letter through a sorting house.
    */
   vehicleGlyph?: string;
+  /**
+   * Which set of shapes the map draws with. 'orbital' is planets, stations and
+   * a deep field; 'interior' is a building — stamps, parcels, counters, clock
+   * faces, tube runs. Recolouring one to look like the other never convinces.
+   */
+  style?: 'orbital' | 'interior';
   constellationColor?: string;
   asteroidColor?: string;
 }
