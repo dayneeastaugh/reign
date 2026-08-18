@@ -268,6 +268,7 @@
         <QuestMap
           levels={quest.levels}
           map={quest.theme.map}
+          variants={quest.theme.variants}
           partGlyphs={quest.collectible.partGlyphs}
           {doneSet}
           currentIndex={app.currentOrbitIndex}

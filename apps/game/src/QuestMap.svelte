@@ -1,9 +1,10 @@
 <script lang="ts">
-  import type { LevelDef, MapThemeDef } from '@reign/engine';
+  import type { LevelDef, MapThemeDef, PlayfieldVariantDef } from '@reign/engine';
 
   let {
     levels,
     map,
+    variants = [],
     partGlyphs,
     doneSet,
     currentIndex,
@@ -12,6 +13,8 @@
   }: {
     levels: LevelDef[];
     map: MapThemeDef;
+    /** Interior maps draw each storey in the colours of the room it plays in. */
+    variants?: PlayfieldVariantDef[];
     partGlyphs: string[];
     doneSet: Set<number>;
     currentIndex: number;
@@ -28,6 +31,8 @@
   const STEP_MILESTONE = 104;
   /** Keeps a node and its plaque clear of the edges. */
   const SIDE_MARGIN = 56;
+  /** Indoors a narrow rail down the left carries the room index. */
+  const RAIL_W = 58;
 
   let W = $state(360);
   const AMPLITUDE = $derived(Math.max(44, Math.min(124, W * 0.33)));
@@ -35,6 +40,9 @@
   const lastIndex = $derived(levels.length - 1);
   /** A building, not a sky: different shapes throughout, not a recolour. */
   const interior = $derived(map.style === 'interior');
+  const railW = $derived(interior ? RAIL_W : 0);
+  /** The cutaway itself: the building occupies everything right of the rail. */
+  const wallW = $derived(Math.max(1, W - railW));
 
   function tierOf(i: number): 'station' | 'world' | 'waypoint' {
     if (levels[i].special) return 'station';
@@ -65,8 +73,9 @@
       y -= steps[i];
       if (interior) {
         // Pneumatic tube: it runs in a lane and jogs across, never meanders.
-        const lane = Math.floor(i / 4) % 2 === 0 ? 0.33 : 0.67;
-        return { x: W * lane, y };
+        // The right lane stops short of the wall, which carries the room badges.
+        const lane = Math.floor(i / 4) % 2 === 0 ? 0.3 : 0.62;
+        return { x: railW + wallW * lane, y };
       }
       const t = (i / 3.5) % 2;
       const sweep = t < 1 ? t * 2 - 1 : 3 - t * 2;
@@ -87,7 +96,12 @@
         d += ` L ${b.x} ${b.y}`;
       } else {
         const midY = (a.y + b.y) / 2;
-        d += ` L ${a.x} ${midY} L ${b.x} ${midY} L ${b.x} ${b.y}`;
+        const dir = b.x > a.x ? 1 : -1;
+        const r = 11;
+        d +=
+          ` L ${a.x} ${midY - r} Q ${a.x} ${midY}, ${a.x + dir * r} ${midY}` +
+          ` L ${b.x - dir * r} ${midY} Q ${b.x} ${midY}, ${b.x} ${midY + r}` +
+          ` L ${b.x} ${b.y}`;
       }
     }
     return d;
@@ -109,22 +123,65 @@
   });
 
   /**
-   * Floors. A building has one every few steps whether or not the room changes;
-   * only the ones that open onto a new room carry a name. Three plates over
-   * thirty levels read as debris, not as storeys.
+   * The cutaway: one band of wall per room, stacked, each in the colours of the
+   * board you will actually play on that floor. Bands tile the whole height, so
+   * there is no void anywhere — which is what stopped this reading as a sky.
+   * Sorting halls fold into the room around them rather than splitting it.
    */
-  const storeys = $derived.by(() => {
-    if (!interior) return [] as Array<{ y: number; name: string }>;
-    const rooms = map.rooms ?? {};
-    const out: Array<{ y: number; name: string }> = [];
-    for (let i = 1; i < levels.length; i++) {
-      const here = levels[i].variant ?? '';
-      const prev = levels[i - 1].variant ?? '';
-      const changed = !!here && here !== prev && !levels[i].special && !levels[i - 1].special;
-      if (!changed && i % 3 !== 0) continue;
-      out.push({ y: (points[i].y + points[i - 1].y) / 2, name: changed ? (rooms[here] ?? '') : '' });
+  const bands = $derived.by(() => {
+    if (!interior || !points.length) {
+      return [] as Array<{
+        id: string;
+        name: string;
+        wall: string;
+        accent: string;
+        glyph: string;
+        start: number;
+        top: number;
+        height: number;
+      }>;
     }
-    return out;
+    const rooms = map.rooms ?? {};
+    const perLevel: string[] = [];
+    let last = '';
+    for (const level of levels) {
+      const v = level.variant ?? '';
+      if (level.special) perLevel.push(last || v);
+      else {
+        last = v;
+        perLevel.push(v);
+      }
+    }
+    // A quest opening on a hall would have no room yet; borrow the first one.
+    const firstNamed = perLevel.find((r) => r && rooms[r]) ?? perLevel[0] ?? '';
+    for (let i = 0; i < perLevel.length && !perLevel[i]; i++) perLevel[i] = firstNamed;
+
+    const groups: Array<{ id: string; from: number; to: number }> = [];
+    for (let i = 0; i < perLevel.length; i++) {
+      const g = groups[groups.length - 1];
+      if (g && g.id === perLevel[i]) g.to = i;
+      else groups.push({ id: perLevel[i], from: i, to: i });
+    }
+
+    const seam = (k: number) => (points[groups[k].to].y + points[groups[k + 1].from].y) / 2;
+    return groups.map((g, k) => {
+      const top = k === groups.length - 1 ? 0 : seam(k);
+      const bottom = k === 0 ? height : seam(k - 1);
+      const variant = variants.find((v) => v.id === g.id);
+      return {
+        id: g.id,
+        name: rooms[g.id] ?? '',
+        wall: variant?.background ?? `linear-gradient(${map.sky[1]}, ${map.sky[0]})`,
+        // The room's own accent, washed over the wall. The variant backgrounds
+        // differ in hue but sit so dark that side by side they read identical;
+        // the light in the room is what tells one storey from the next.
+        accent: variant?.queenColor ?? map.starColors[0],
+        glyph: variant?.queenGlyph ?? '',
+        start: g.from + 1,
+        top,
+        height: Math.max(0, bottom - top),
+      };
+    });
   });
 
   /** Wall furniture, placed away from the tube lanes so nothing collides. */
@@ -140,14 +197,14 @@
     for (let i = 0; i < rows; i++) {
       const y = topPad + 30 + (i * (height - topPad - 230)) / rows + rnd() * 26;
       const leftSide = rnd() < 0.5;
-      const x = leftSide ? 10 + rnd() * 26 : W - 74 - rnd() * 26;
+      const x = leftSide ? railW + 8 + rnd() * 22 : W - 76 - rnd() * 22;
       const kind = i % 4;
       if (kind === 0) racks.push({ x, y, cols: 3 + Math.floor(rnd() * 2), rows: 3 });
       else if (kind === 1) shelves.push({ x, y, w: 54 + rnd() * 16, items: 2 + Math.floor(rnd() * 2) });
       else if (kind === 2) lamps.push({ x: x + 18, y: y - 30 });
       else clocks.push({ x, y, size: 30 + rnd() * 8 });
       if (rnd() < 0.65) {
-        letters.push({ x: leftSide ? W - 60 - rnd() * 40 : 24 + rnd() * 40, y: y + 40, r: 4 + rnd() * 2, rot: -20 + rnd() * 40 });
+        letters.push({ x: leftSide ? W - 62 - rnd() * 36 : railW + 22 + rnd() * 36, y: y + 40, r: 4 + rnd() * 2, rot: -20 + rnd() * 40 });
       }
     }
     return { racks, shelves, lamps, clocks, letters };
@@ -364,6 +421,23 @@
 </script>
 
 <div class="scroller" bind:this={scroller} bind:clientWidth={W}>
+  {#if interior}
+    <div class="rail" style="width:{railW}px;height:{height}px;border-color:{map.pathAhead}">
+      {#each bands as b (b.id)}
+        <div class="rail-band" style="top:{b.top}px;height:{b.height}px">
+          <div class="rail-plate">
+            <span class="rail-name" style="color:{map.starColors[0]}">{b.name}</span>
+            <span class="rail-row">
+              <span class="rail-num" style="color:{map.pathBehind}">{b.start}</span>
+              {#if b.glyph}<span class="rail-glyph" style="color:{map.starColors[1]}">{b.glyph}</span>{/if}
+            </span>
+            <span class="rail-tick" style="background:{map.pathAhead}"></span>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
   <div
     class="sky"
     style="height:{height}px;background:linear-gradient({map.sky.join(', ')});
@@ -509,6 +583,33 @@
     {/if}
 
     {#if interior}
+      <!-- The cutaway: a band of wall per storey, floor plates between them. -->
+      {#each bands as b, k (b.id)}
+        <div class="storey" style="left:{railW}px;top:{b.top}px;height:{b.height}px;background:{b.wall}">
+          <span class="storey-ceiling" style="background:linear-gradient({map.sky[0]}, transparent)"></span>
+          <span
+            class="storey-wash"
+            style="background:radial-gradient(115% 62% at 74% 86%, {b.accent}22, {b.accent}0b 55%, transparent)"
+          ></span>
+          {#if b.glyph}
+            <span
+              class="storey-badge"
+              style="border-color:{map.pathBehind};color:{map.starColors[0]};background:{map.sky[0]}"
+              >{b.glyph}</span
+            >
+            <span class="storey-name" style="color:{map.starColors[1]}">{b.name}</span>
+          {/if}
+          {#if k > 0}
+            <span
+              class="storey-floor"
+              style="background:linear-gradient({b.accent}66 0 3px, {map.lockedPalette[0]} 3px, {map.lockedPalette[2]});
+                box-shadow:0 -7px 12px -4px {map.sky[0]}"
+            ></span>
+            <span class="storey-joist" style="background:{map.pathBehind}"></span>
+          {/if}
+        </div>
+      {/each}
+
       {#each fittings.lamps as l, i (i)}
         <div class="lamp" style="left:{l.x}px;top:{l.y}px">
           <span class="lamp-cord" style="background:{map.pathAhead}"></span>
@@ -558,18 +659,8 @@
         </span>
       {/each}
 
-      {#each storeys as f, i (i)}
-        <div class="storey" style="top:{f.y}px">
-          <span class="floor-plank" style="background:linear-gradient({map.lockedPalette[0]}, {map.sky[0]})"></span>
-          <span class="floor-edge" style="background:{map.pathBehind}"></span>
-          {#if f.name}
-            <span class="floor-name" style="color:{map.starColors[1]};background:{map.sky[0]}">{f.name}</span>
-          {/if}
-        </div>
-      {/each}
-
       <!-- The loft: where the tube ends and the postmaster works. -->
-      <div class="loft">
+      <div class="loft" style="left:{railW}px">
         <span class="loft-wall" style="background:linear-gradient({map.sky[0]}, transparent)"></span>
         <div class="loft-holes">
           {#each Array(18) as _, i (i)}
@@ -588,7 +679,7 @@
         ></span>
       </div>
 
-      <div class="doorway">
+      <div class="doorway" style="left:{railW}px">
         <span class="door-panel" style="background:linear-gradient({map.homePalette[1]}, {map.homePalette[2]})"></span>
         <span class="door-plate" style="background:linear-gradient({map.homePalette[0]}, {map.homePalette[1]})">
           <span class="door-slot" style="background:{map.sky[0]}"></span>
@@ -837,6 +928,7 @@
 
 <style>
   .scroller {
+    position: relative;
     flex: 1;
     min-height: 0;
     width: 100%;
@@ -1352,47 +1444,133 @@
     opacity: 0.5;
   }
 
-  /* A floor: plank, lit edge, and the room it opens onto. */
+  /* A storey: a full band of wall, its floor plate, and its room badge. */
   .storey {
     position: absolute;
-    left: 0;
     right: 0;
-    height: 22px;
     pointer-events: none;
   }
 
-  .floor-plank {
+  .storey-ceiling {
     position: absolute;
     left: 0;
     right: 0;
     top: 0;
-    height: 14px;
-    opacity: 0.9;
+    height: 26px;
+    opacity: 0.65;
   }
 
-  .floor-edge {
+  .storey-wash {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* The floor plate reads as the underside of the storey above. */
+  .storey-floor {
     position: absolute;
     left: 0;
     right: 0;
-    top: 0;
-    height: 1.5px;
-    opacity: 0.5;
+    bottom: 0;
+    height: 16px;
   }
 
-  .floor-name {
+  .storey-joist {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+    height: 2px;
+    opacity: 0.85;
+  }
+
+  .storey-badge {
     position: absolute;
     right: 12px;
-    top: 3px;
-    font-family: var(--font-serif);
-    font-size: 10.5px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 1px 7px;
-    border-radius: 3px;
-    opacity: 0.9;
+    bottom: 34px;
+    width: 27px;
+    height: 31px;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    border: 1.5px solid;
+    border-radius: 3px 3px 13px 13px;
+    opacity: 0.85;
   }
 
-  /* The front door the letter arrives through: panel, brass slot, mat. */
+  /* Announces the room as you come up through its floor. */
+  .storey-name {
+    position: absolute;
+    right: 46px;
+    bottom: 40px;
+    font-family: var(--font-serif);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0.6;
+  }
+
+  /* The index rail: which room you are in, and where it started. */
+  .rail {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    border-right: 1px solid;
+    border-color: inherit;
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .rail-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+  }
+
+  /* Sticky, so the room you are standing in names itself the whole way up. */
+  .rail-plate {
+    position: sticky;
+    top: 12px;
+    padding: 0 8px 0 10px;
+  }
+
+  .rail-name {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 9.5px;
+    line-height: 1.25;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    opacity: 0.92;
+  }
+
+  .rail-row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-top: 3px;
+  }
+
+  .rail-num {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    opacity: 0.95;
+  }
+
+  .rail-glyph {
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  .rail-tick {
+    display: block;
+    width: 14px;
+    height: 1px;
+    margin-top: 5px;
+    opacity: 0.6;
+  }
+
   /* Loft terminus — the counterpart to the letter slot at the foot. */
   .loft {
     position: absolute;
