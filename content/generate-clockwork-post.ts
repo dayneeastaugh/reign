@@ -161,7 +161,7 @@ const quest: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'clockwork-post',
   name: 'The Clockwork Post',
-  version: 4,
+  version: 5,
   goal: 'Rebuild the letter scale',
   setup: {
     levelCount: LEVEL_COUNT,
@@ -215,6 +215,13 @@ const quest: TournamentDef = {
       cometColor: 'rgba(255, 234, 190, 0.7)',
       vehicleGlyph: '✉',
       style: 'interior',
+      rooms: {
+        intake: 'Intake',
+        sorting: 'Sorting floor',
+        franking: 'Franking room',
+        restante: 'Poste restante',
+        hall: 'Sorting hall',
+      },
     },
   },
   levels,

@@ -54,6 +54,8 @@ export interface MapThemeDef {
    * faces, tube runs. Recolouring one to look like the other never convinces.
    */
   style?: 'orbital' | 'interior';
+  /** Display names per variant id, shown on the floor plates of an interior. */
+  rooms?: Record<string, string>;
   constellationColor?: string;
   asteroidColor?: string;
 }

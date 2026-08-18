@@ -21,6 +21,8 @@
 
   const BOTTOM_PAD = 150;
   const TOP_PAD = 120;
+  /** Indoors the route ends in the loft, which needs room above the last stop. */
+  const topPad = $derived(map.style === 'interior' ? 180 : TOP_PAD);
   /** Ordinary stops sit closer together; a milestone earns room to breathe. */
   const STEP_WAYPOINT = 64;
   const STEP_MILESTONE = 104;
@@ -50,7 +52,7 @@
   );
 
   const totalRise = $derived(steps.reduce((a, b) => a + b, 0));
-  const height = $derived(BOTTOM_PAD + totalRise + TOP_PAD);
+  const height = $derived(BOTTOM_PAD + totalRise + topPad);
 
   /**
    * A triangle sweep sets the side, so the route always crosses the full width
@@ -61,12 +63,94 @@
     let y = height - BOTTOM_PAD;
     return levels.map((_, i) => {
       y -= steps[i];
+      if (interior) {
+        // Pneumatic tube: it runs in a lane and jogs across, never meanders.
+        const lane = Math.floor(i / 4) % 2 === 0 ? 0.33 : 0.67;
+        return { x: W * lane, y };
+      }
       const t = (i / 3.5) % 2;
       const sweep = t < 1 ? t * 2 - 1 : 3 - t * 2;
       const wander = 0.86 * sweep + 0.14 * Math.sin(i * 1.7 + 0.6);
       const half = Math.max(0, W / 2 - SIDE_MARGIN);
       return { x: W / 2 + Math.max(-half, Math.min(half, AMPLITUDE * wander)), y };
     });
+  });
+
+  /** Straight runs joined by right-angle elbows — how a real tube is plumbed. */
+  function tubePath(pts: Array<{ x: number; y: number }>): string {
+    if (pts.length < 2) return '';
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1];
+      const b = pts[i];
+      if (Math.abs(a.x - b.x) < 1) {
+        d += ` L ${b.x} ${b.y}`;
+      } else {
+        const midY = (a.y + b.y) / 2;
+        d += ` L ${a.x} ${midY} L ${b.x} ${midY} L ${b.x} ${b.y}`;
+      }
+    }
+    return d;
+  }
+
+  /** Couplings sit at every bend, where two runs are joined. */
+  const elbows = $derived.by(() => {
+    if (!interior) return [] as Array<{ x: number; y: number }>;
+    const out: Array<{ x: number; y: number }> = [];
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      if (Math.abs(a.x - b.x) >= 1) {
+        const midY = (a.y + b.y) / 2;
+        out.push({ x: a.x, y: midY }, { x: b.x, y: midY });
+      }
+    }
+    return out;
+  });
+
+  /**
+   * Floors. A building has one every few steps whether or not the room changes;
+   * only the ones that open onto a new room carry a name. Three plates over
+   * thirty levels read as debris, not as storeys.
+   */
+  const storeys = $derived.by(() => {
+    if (!interior) return [] as Array<{ y: number; name: string }>;
+    const rooms = map.rooms ?? {};
+    const out: Array<{ y: number; name: string }> = [];
+    for (let i = 1; i < levels.length; i++) {
+      const here = levels[i].variant ?? '';
+      const prev = levels[i - 1].variant ?? '';
+      const changed = !!here && here !== prev && !levels[i].special && !levels[i - 1].special;
+      if (!changed && i % 3 !== 0) continue;
+      out.push({ y: (points[i].y + points[i - 1].y) / 2, name: changed ? (rooms[here] ?? '') : '' });
+    }
+    return out;
+  });
+
+  /** Wall furniture, placed away from the tube lanes so nothing collides. */
+  const fittings = $derived.by(() => {
+    if (!interior) return { racks: [], shelves: [], lamps: [], clocks: [], letters: [] };
+    const rnd = makeRng(834112);
+    const rows = Math.max(6, Math.round(height / 105));
+    const racks: Array<{ x: number; y: number; cols: number; rows: number }> = [];
+    const shelves: Array<{ x: number; y: number; w: number; items: number }> = [];
+    const lamps: Array<{ x: number; y: number }> = [];
+    const clocks: Array<{ x: number; y: number; size: number }> = [];
+    const letters: Array<{ x: number; y: number; r: number; rot: number }> = [];
+    for (let i = 0; i < rows; i++) {
+      const y = topPad + 30 + (i * (height - topPad - 230)) / rows + rnd() * 26;
+      const leftSide = rnd() < 0.5;
+      const x = leftSide ? 10 + rnd() * 26 : W - 74 - rnd() * 26;
+      const kind = i % 4;
+      if (kind === 0) racks.push({ x, y, cols: 3 + Math.floor(rnd() * 2), rows: 3 });
+      else if (kind === 1) shelves.push({ x, y, w: 54 + rnd() * 16, items: 2 + Math.floor(rnd() * 2) });
+      else if (kind === 2) lamps.push({ x: x + 18, y: y - 30 });
+      else clocks.push({ x, y, size: 30 + rnd() * 8 });
+      if (rnd() < 0.65) {
+        letters.push({ x: leftSide ? W - 60 - rnd() * 40 : 24 + rnd() * 40, y: y + 40, r: 4 + rnd() * 2, rot: -20 + rnd() * 40 });
+      }
+    }
+    return { racks, shelves, lamps, clocks, letters };
   });
 
   /**
@@ -167,8 +251,12 @@
     return { stars, twinkles, clouds, galaxies, constellations, asteroids };
   });
 
-  const pathBehind = $derived(smoothPath(points.slice(0, Math.min(currentIndex, lastIndex) + 1)));
-  const pathAhead = $derived(smoothPath(points.slice(Math.min(currentIndex, lastIndex))));
+  const pathBehind = $derived(
+    (interior ? tubePath : smoothPath)(points.slice(0, Math.min(currentIndex, lastIndex) + 1)),
+  );
+  const pathAhead = $derived(
+    (interior ? tubePath : smoothPath)(points.slice(Math.min(currentIndex, lastIndex))),
+  );
 
   function worldSize(i: number): number {
     if (i === lastIndex) return 74;
@@ -177,7 +265,12 @@
 
   function paletteFor(i: number, done: boolean, current: boolean): string[] {
     if (current) return map.currentPalette;
-    if (!done) return map.lockedPalette;
+    if (!done) {
+      // Indoors the locked palette is the building's own timber, so a parcel
+      // painted in it vanishes into the wall. Undelivered post is kraft paper:
+      // its own colour, drained rather than blacked out (see .parcel.locked).
+      return interior ? map.bodyPalettes[i % map.bodyPalettes.length] : map.lockedPalette;
+    }
     return map.bodyPalettes[i % map.bodyPalettes.length];
   }
 
@@ -278,6 +371,7 @@
       --locked-a:{map.lockedPalette[0]};--locked-b:{map.lockedPalette[1]};
       --label:{map.starColors[2] ?? map.starColors[0]}"
   >
+    {#if !interior}
     {#each decor.clouds as c, i (i)}
       <div
         class="cloud"
@@ -395,6 +489,9 @@
       {/each}
     </svg>
 
+    {/if}
+
+    {#if !interior}
     {#each decor.stars as s, i (i)}
       <div
         class="star-dot"
@@ -409,8 +506,88 @@
         >✦</span
       >
     {/each}
+    {/if}
 
     {#if interior}
+      {#each fittings.lamps as l, i (i)}
+        <div class="lamp" style="left:{l.x}px;top:{l.y}px">
+          <span class="lamp-cord" style="background:{map.pathAhead}"></span>
+          <span class="lamp-shade" style="background:{map.pathBehind}"></span>
+          <span class="lamp-glow" style="background:radial-gradient(closest-side, {map.nebulas[0]}, transparent)"></span>
+        </div>
+      {/each}
+
+      {#each fittings.racks as r, i (i)}
+        <div class="rack" style="left:{r.x}px;top:{r.y}px;border-color:{map.pathAhead}">
+          {#each Array(r.cols * r.rows) as _, c (c)}
+            <span class="hole" style="border-color:{map.pathAhead};background:{map.sky[0]}"></span>
+          {/each}
+        </div>
+      {/each}
+
+      {#each fittings.shelves as sh, i (i)}
+        <div class="shelf" style="left:{sh.x}px;top:{sh.y}px;width:{sh.w}px">
+          <span class="shelf-plank" style="background:{map.lockedPalette[0]};box-shadow:0 2px 4px {map.sky[0]}"></span>
+          {#each Array(sh.items) as _, k (k)}
+            <span class="shelf-parcel" style="left:{6 + k * 20}px;background:{map.bodyPalettes[(i + k) % map.bodyPalettes.length][1]}"></span>
+          {/each}
+        </div>
+      {/each}
+
+      {#each fittings.clocks as c, i (i)}
+        <svg class="clockface" style="left:{c.x}px;top:{c.y}px" width={c.size} height={c.size} viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx="20" cy="20" r="17" fill={map.sky[1]} stroke={map.galaxyColor} stroke-width="1.6" />
+          {#each [0, 3, 6, 9] as tick (tick)}
+            <line
+              x1={20 + 12 * Math.sin((tick / 12) * 2 * Math.PI)}
+              y1={20 - 12 * Math.cos((tick / 12) * 2 * Math.PI)}
+              x2={20 + 15 * Math.sin((tick / 12) * 2 * Math.PI)}
+              y2={20 - 15 * Math.cos((tick / 12) * 2 * Math.PI)}
+              stroke={map.galaxyColor}
+              stroke-width="1.2"
+            />
+          {/each}
+          <line x1="20" y1="20" x2="20" y2="11" stroke={map.galaxyColor} stroke-width="1.4" />
+          <line x1="20" y1="20" x2="26" y2="23" stroke={map.galaxyColor} stroke-width="1.2" />
+        </svg>
+      {/each}
+
+      {#each fittings.letters as a, i (i)}
+        <span class="drift-letter" style="left:{a.x}px;top:{a.y}px;transform:rotate({a.rot}deg);background:{map.starColors[0]}">
+          <span class="flap" style="border-top-color:{map.lockedPalette[0]}"></span>
+        </span>
+      {/each}
+
+      {#each storeys as f, i (i)}
+        <div class="storey" style="top:{f.y}px">
+          <span class="floor-plank" style="background:linear-gradient({map.lockedPalette[0]}, {map.sky[0]})"></span>
+          <span class="floor-edge" style="background:{map.pathBehind}"></span>
+          {#if f.name}
+            <span class="floor-name" style="color:{map.starColors[1]};background:{map.sky[0]}">{f.name}</span>
+          {/if}
+        </div>
+      {/each}
+
+      <!-- The loft: where the tube ends and the postmaster works. -->
+      <div class="loft">
+        <span class="loft-wall" style="background:linear-gradient({map.sky[0]}, transparent)"></span>
+        <div class="loft-holes">
+          {#each Array(18) as _, i (i)}
+            <span class="hole" style="border-color:{map.pathAhead};background:{map.sky[0]}"></span>
+          {/each}
+        </div>
+        <span class="desk-leg left" style="background:{map.lockedPalette[2]}"></span>
+        <span class="desk-leg right" style="background:{map.lockedPalette[2]}"></span>
+        <span class="desk" style="background:linear-gradient({map.lockedPalette[0]}, {map.lockedPalette[2]})"></span>
+        <span class="desk-edge" style="background:{map.pathBehind}"></span>
+        <span class="ledger" style="background:{map.bodyPalettes[2][0]};border-color:{map.bodyPalettes[2][2]}"></span>
+        <span class="desk-lamp" style="background:{map.pathBehind}"></span>
+        <span
+          class="desk-glow"
+          style="background:radial-gradient(closest-side, {map.nebulas[0]}, transparent)"
+        ></span>
+      </div>
+
       <div class="doorway">
         <span class="door-panel" style="background:linear-gradient({map.homePalette[1]}, {map.homePalette[2]})"></span>
         <span class="door-plate" style="background:linear-gradient({map.homePalette[0]}, {map.homePalette[1]})">
@@ -427,7 +604,7 @@
     {/if}
 
     <svg class="paths" width={W} {height} aria-hidden="true">
-      {#each dividers as y, i (i)}
+      {#each interior ? [] : dividers as y, i (i)}
         <g opacity="0.5">
           <line x1="26" y1={y} x2={W / 2 - 12} y2={y} stroke={map.pathAhead} stroke-width="0.75" />
           <line x1={W / 2 + 12} y1={y} x2={W - 26} y2={y} stroke={map.pathAhead} stroke-width="0.75" />
@@ -437,23 +614,64 @@
           />
         </g>
       {/each}
-      <path
-        d={pathAhead}
-        fill="none"
-        stroke={map.pathAhead}
-        stroke-width="1.5"
-        stroke-dasharray="1 7"
-        stroke-linecap="round"
-        opacity="0.7"
-      />
-      <path
-        d={pathBehind}
-        fill="none"
-        stroke={map.pathBehind}
-        stroke-width="2.5"
-        stroke-linecap="round"
-        opacity="0.6"
-      />
+      {#if interior}
+        <path d={pathAhead} fill="none" stroke={map.sky[0]} stroke-width="13" stroke-linejoin="round" opacity="0.85" />
+        <path d={pathAhead} fill="none" stroke={map.pathAhead} stroke-width="9" stroke-linejoin="round" opacity="0.55" />
+        <path d={pathAhead} fill="none" stroke={map.starColors[0]} stroke-width="2" stroke-linejoin="round" opacity="0.16" />
+        <path d={pathBehind} fill="none" stroke={map.sky[0]} stroke-width="13" stroke-linejoin="round" />
+        <path d={pathBehind} fill="none" stroke={map.pathBehind} stroke-width="9" stroke-linejoin="round" opacity="0.9" />
+        <path d={pathBehind} fill="none" stroke={map.starColors[2] ?? map.starColors[0]} stroke-width="2.4" stroke-linejoin="round" opacity="0.42" />
+        <!-- The last run: the tube carries on past the top stop into the loft. -->
+        {#if points.length}
+          <line
+            x1={points[lastIndex].x}
+            y1={points[lastIndex].y}
+            x2={points[lastIndex].x}
+            y2={topPad - 22}
+            stroke={map.sky[0]}
+            stroke-width="13"
+          />
+          <line
+            x1={points[lastIndex].x}
+            y1={points[lastIndex].y}
+            x2={points[lastIndex].x}
+            y2={topPad - 22}
+            stroke={map.pathAhead}
+            stroke-width="9"
+            opacity="0.55"
+          />
+        {/if}
+        {#each elbows as e, i (i)}
+          <rect
+            x={e.x - 8}
+            y={e.y - 5}
+            width="16"
+            height="10"
+            rx="2"
+            fill={map.lockedPalette[0]}
+            stroke={map.pathAhead}
+            stroke-width="1"
+          />
+        {/each}
+      {:else}
+        <path
+          d={pathAhead}
+          fill="none"
+          stroke={map.pathAhead}
+          stroke-width="1.5"
+          stroke-dasharray="1 7"
+          stroke-linecap="round"
+          opacity="0.7"
+        />
+        <path
+          d={pathBehind}
+          fill="none"
+          stroke={map.pathBehind}
+          stroke-width="2.5"
+          stroke-linecap="round"
+          opacity="0.6"
+        />
+      {/if}
     </svg>
 
     {#each levels as level, i (i)}
@@ -1034,10 +1252,239 @@
   .clockface {
     position: absolute;
     pointer-events: none;
-    opacity: 0.55;
+    opacity: 0.5;
+  }
+
+  /* Wall fittings — the building the tube runs through. */
+  .lamp {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .lamp-cord {
+    position: absolute;
+    left: 50%;
+    top: -26px;
+    width: 1px;
+    height: 26px;
+    opacity: 0.5;
+  }
+
+  .lamp-shade {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 22px;
+    height: 9px;
+    transform: translateX(-50%);
+    border-radius: 11px 11px 2px 2px;
+    opacity: 0.75;
+  }
+
+  .lamp-glow {
+    position: absolute;
+    left: 50%;
+    top: 4px;
+    width: 132px;
+    height: 108px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+  }
+
+  .rack {
+    position: absolute;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 15px);
+    width: 62px;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid;
+    border-radius: 2px;
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  .hole {
+    width: 15px;
+    height: 11px;
+    border: 1px solid;
+    border-radius: 1px;
+  }
+
+  .shelf {
+    position: absolute;
+    height: 18px;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .shelf-plank {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    border-radius: 1px;
+  }
+
+  .shelf-parcel {
+    position: absolute;
+    bottom: 3px;
+    width: 14px;
+    height: 11px;
+    border-radius: 1px;
+    opacity: 0.85;
+  }
+
+  .drift-letter {
+    position: absolute;
+    width: 13px;
+    height: 9px;
+    border-radius: 1px;
+    opacity: 0.34;
+    pointer-events: none;
+  }
+
+  .flap {
+    position: absolute;
+    inset: 0;
+    border-top: 4px solid;
+    opacity: 0.5;
+  }
+
+  /* A floor: plank, lit edge, and the room it opens onto. */
+  .storey {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 22px;
+    pointer-events: none;
+  }
+
+  .floor-plank {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 14px;
+    opacity: 0.9;
+  }
+
+  .floor-edge {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1.5px;
+    opacity: 0.5;
+  }
+
+  .floor-name {
+    position: absolute;
+    right: 12px;
+    top: 3px;
+    font-family: var(--font-serif);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 1px 7px;
+    border-radius: 3px;
+    opacity: 0.9;
   }
 
   /* The front door the letter arrives through: panel, brass slot, mat. */
+  /* Loft terminus — the counterpart to the letter slot at the foot. */
+  .loft {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 150px;
+    pointer-events: none;
+  }
+
+  .loft-wall {
+    position: absolute;
+    inset: 0;
+    opacity: 0.85;
+  }
+
+  .loft-holes {
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    display: grid;
+    grid-template-columns: repeat(6, 15px);
+    gap: 2px;
+    opacity: 0.5;
+  }
+
+  .desk {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: 22px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  .desk-edge {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: 34px;
+    height: 2px;
+    opacity: 0.55;
+  }
+
+  .desk-leg {
+    position: absolute;
+    bottom: 0;
+    width: 4px;
+    height: 24px;
+    opacity: 0.9;
+  }
+
+  .desk-leg.left {
+    left: 22%;
+  }
+
+  .desk-leg.right {
+    right: 22%;
+  }
+
+  .ledger {
+    position: absolute;
+    left: 26%;
+    bottom: 36px;
+    width: 34px;
+    height: 8px;
+    border: 1px solid;
+    border-radius: 1px;
+    transform: rotate(-3deg);
+    opacity: 0.8;
+  }
+
+  .desk-lamp {
+    position: absolute;
+    right: 26%;
+    bottom: 36px;
+    width: 20px;
+    height: 8px;
+    border-radius: 10px 10px 2px 2px;
+    opacity: 0.85;
+  }
+
+  .desk-glow {
+    position: absolute;
+    right: 18%;
+    bottom: 8px;
+    width: 116px;
+    height: 84px;
+    border-radius: 50%;
+  }
+
   .doorway {
     position: absolute;
     left: 0;
@@ -1119,7 +1566,7 @@
   }
 
   .parcel.locked {
-    filter: grayscale(0.5) brightness(0.62);
+    filter: saturate(0.3) brightness(0.66);
     box-shadow: none;
   }
 
