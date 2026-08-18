@@ -72,6 +72,21 @@ export interface MapThemeDef {
   /** Painted ends of an interior route: the way in, and the room it leads to. */
   doorArt?: string;
   loftArt?: string;
+  /**
+   * A painted map: the whole route as one artwork, with interactive stops
+   * anchored onto it in artwork pixels. When set, the map is this image —
+   * the procedural scene stands down and only stops, states, stars and the
+   * traveller are drawn over it. Numerals painted in the art are covered by
+   * the real stops, so the artwork can be wrong about them; `covers` patches
+   * the handful of painted labels that state a level number.
+   */
+  mural?: {
+    image: string;
+    width: number;
+    height: number;
+    anchors: Array<{ x: number; y: number; kind?: 'disc' | 'parcel' | 'hall' | 'seal' }>;
+    covers?: Array<{ x: number; y: number; text: string }>;
+  };
   /** Display names per variant id, shown on the floor plates of an interior. */
   rooms?: Record<string, string>;
   constellationColor?: string;

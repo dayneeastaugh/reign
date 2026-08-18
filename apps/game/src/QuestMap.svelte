@@ -41,6 +41,9 @@
   const lastIndex = $derived(levels.length - 1);
   /** A building, not a sky: different shapes throughout, not a recolour. */
   const interior = $derived(map.style === 'interior');
+  /** A painted map: the artwork is the scene, only game state is drawn over it. */
+  const mural = $derived(map.mural ?? null);
+  const mscale = $derived(mural ? W / mural.width : 1);
   const railW = $derived(interior ? RAIL_W : 0);
   /** The cutaway itself: the building occupies everything right of the rail. */
   const wallW = $derived(Math.max(1, W - railW));
@@ -61,7 +64,7 @@
   );
 
   const totalRise = $derived(steps.reduce((a, b) => a + b, 0));
-  const height = $derived(BOTTOM_PAD + totalRise + topPad);
+  const height = $derived(mural ? Math.round(mural.height * mscale) : BOTTOM_PAD + totalRise + topPad);
 
   /**
    * A triangle sweep sets the side, so the route always crosses the full width
@@ -69,6 +72,7 @@
    * keeps it from marching. Clamped so a node and its plaque stay in frame.
    */
   const points = $derived.by(() => {
+    if (mural) return mural.anchors.map((a) => ({ x: a.x * mscale, y: a.y * mscale }));
     let y = height - BOTTOM_PAD;
     return levels.map((_, i) => {
       y -= steps[i];
@@ -193,6 +197,7 @@
 
   /** Wall furniture, placed away from the tube lanes so nothing collides. */
   const painted = $derived(interior && variants.some((v) => v.wallLeft));
+  const sceneInterior = $derived(interior && !mural);
 
   const fittings = $derived.by(() => {
     if (!interior) return { racks: [], shelves: [], lamps: [], clocks: [], letters: [] };
@@ -432,7 +437,7 @@
 </script>
 
 <div class="scroller" bind:this={scroller} bind:clientWidth={W}>
-  {#if interior}
+  {#if sceneInterior}
     <div class="rail" style="width:{railW}px;height:{height}px;border-color:{map.pathAhead}">
       {#each bands as b (b.id)}
         <div class="rail-band" style="top:{b.top}px;height:{b.height}px">
@@ -464,7 +469,7 @@
       ></div>
     {/each}
 
-    {#if interior}
+    {#if sceneInterior}
       {#each decor.galaxies as g, i (i)}
         <!-- A wall clock, ticking somewhere above the benches -->
         <svg
@@ -593,7 +598,19 @@
     {/each}
     {/if}
 
-    {#if interior}
+    {#if mural}
+      <!-- The map is the painting; everything below draws state over it. -->
+      <div
+        class="mural"
+        style="height:{height}px;background-image:url({contentUrl(mural.image)})"
+        aria-hidden="true"
+      ></div>
+      {#each mural.covers ?? [] as c (c.text)}
+        <span class="mural-cover" style="left:{c.x * mscale}px;top:{c.y * mscale}px">{c.text}</span>
+      {/each}
+    {/if}
+
+    {#if sceneInterior}
       <!-- The cutaway: a band of wall per storey, floor plates between them. -->
       {#each bands as b, k (b.id)}
         <div class="storey" style="left:{railW}px;top:{b.top}px;height:{b.height}px;background:{b.wall}">
@@ -715,7 +732,7 @@
         {/if}
         <span class="door-mat" style="background:{map.lockedPalette[0]}"></span>
       </div>
-    {:else}
+    {:else if !interior}
       <div
         class="home-body"
         style="width:{W * 1.25}px;height:{W * 1.25}px;bottom:{-W * 1.02}px;background:radial-gradient(circle at 32% 18%, {map.homePalette[0]}, {map.homePalette[1]} 45%, {map.homePalette[2]} 78%, {map.homePalette[2]})"
@@ -734,7 +751,9 @@
           />
         </g>
       {/each}
-      {#if interior}
+      {#if mural}
+        <!-- The painting draws its own tube. -->
+      {:else if interior}
         <path d={pathAhead} fill="none" stroke={map.sky[0]} stroke-width="13" stroke-linejoin="round" opacity="0.85" />
         <path d={pathAhead} fill="none" stroke={map.pathAhead} stroke-width="9" stroke-linejoin="round" opacity="0.55" />
         <path d={pathAhead} fill="none" stroke={map.starColors[0]} stroke-width="2" stroke-linejoin="round" opacity="0.16" />
@@ -805,10 +824,42 @@
       {@const labelLeft = p.x > W / 2}
       {@const aria = `Level ${i + 1}: ${level.name}${done ? `, completed, ${stars} of 3 stars` : locked ? ', locked' : ''}`}
 
-      <div class="node-abs" class:big={tier !== 'waypoint'} style="left:{p.x}px;top:{p.y}px">
+      <div class="node-abs" class:big={tier !== 'waypoint'} class:on-art={!!mural} style="left:{p.x}px;top:{p.y}px">
         {#if current}<span class="pulse"></span>{/if}
 
-        {#if tier === 'station' && interior}
+        {#if mural}
+          {@const kind = mural.anchors[i]?.kind ?? 'disc'}
+          {@const d = Math.round(45 * mscale)}
+          {#if kind === 'seal'}
+            <!-- The painted wax is the stop; only its state is drawn. -->
+            <button class="seal-hit" class:locked style="width:{d + 10}px;height:{d + 10}px" disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
+              {#if locked}<span class="seal-dim"></span>{/if}
+              {#if done}<span class="seal-ring" style="border-color:{map.pathBehind}"></span>{/if}
+            </button>
+          {:else if kind === 'hall'}
+            <button class="press-tile" class:lit={done} class:locked style="width:{d + 8}px;height:{d + 8}px" disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
+              <span class="tile-lever"><span class="tile-knob"></span></span>
+              {done ? partGlyphs[level.partIndex ?? 0] : i + 1}
+            </button>
+          {:else if kind === 'parcel'}
+            <button
+              class="parcel mural-parcel"
+              class:locked
+              style="width:{d}px;height:{Math.round(d * 0.78)}px;background:linear-gradient({pal[0]}, {pal[1]});border-color:{pal[2]}"
+              disabled={locked}
+              onclick={() => onSelect(i)}
+              aria-label={aria}
+            >
+              <span class="twine v" style="background:{pal[2]}"></span>
+              <span class="twine h" style="background:{pal[2]}"></span>
+              <span class="ticket" style="background:{pal[0]};color:{pal[2]}">{i + 1}</span>
+            </button>
+          {:else}
+            <button class="stamp mural-disc" class:done class:locked class:starred={stars >= 3} style="width:{d}px;height:{d}px" disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
+              <span class="num">{i + 1}</span>
+            </button>
+          {/if}
+        {:else if tier === 'station' && interior}
           <!-- A franking counter: two benches and the press between them -->
           <button class="counter" class:lit={done} disabled={locked} onclick={() => onSelect(i)} aria-label={aria}>
             <span class="bench left"></span>
@@ -909,7 +960,7 @@
           </button>
         {/if}
 
-        {#if interior}
+        {#if interior && !(mural && locked)}
           <span class="rail-stars" class:tiny={tier === 'waypoint'} class:dim={locked}
             style="background:{map.sky[0]};border-color:{map.lockedPalette[0]}">
             {#each [0, 1, 2] as s (s)}<span class="star" class:filled={s < stars}>★</span>{/each}
@@ -920,7 +971,7 @@
           </span>
         {/if}
 
-        {#if tier !== 'waypoint'}
+        {#if mural ? current : tier !== 'waypoint'}
           <span class="label" class:left={labelLeft} class:muted={locked}>{level.name}</span>
         {/if}
       </div>
@@ -1054,6 +1105,31 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
+  }
+
+  /*
+   * On a painting the button must sit exactly over the painted stop, so the
+   * rail and label hang from it absolutely instead of stretching the column.
+   */
+  .node-abs.on-art {
+    gap: 0;
+  }
+
+  .node-abs.on-art .rail-stars {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 3px;
+  }
+
+  .node-abs.on-art .label {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 24px;
+    white-space: nowrap;
   }
 
   .world,
@@ -1508,6 +1584,118 @@
     inset: 0;
     border-top: 4px solid;
     opacity: 0.5;
+  }
+
+  /* The painting itself, scaled to the viewport; state renders over it. */
+  .mural {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+
+  /* Patches over painted room-start numbers the art got wrong. */
+  .mural-cover {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #171310;
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: #d8cfae;
+    pointer-events: none;
+  }
+
+  /* Stops sized to sit exactly over the painted discs. */
+  .mural-disc .num {
+    font-size: 13px;
+  }
+
+  .mural-parcel {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* A sorting hall: the painted junction tile, pressed into service. */
+  .press-tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    border: 2px solid var(--rim);
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    color: #33260f;
+    background:
+      linear-gradient(150deg, #efe3c4, #d3bf94 55%, #b59d6e);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 250, 235, 0.5),
+      0 3px 9px rgba(0, 0, 0, 0.5);
+  }
+
+  .press-tile.lit {
+    border-color: var(--earned);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 250, 235, 0.5),
+      0 0 11px -1px var(--earned),
+      0 3px 9px rgba(0, 0, 0, 0.5);
+  }
+
+  .press-tile.locked {
+    filter: saturate(0.35) brightness(0.6);
+  }
+
+  .tile-lever {
+    position: absolute;
+    left: 50%;
+    top: -12px;
+    width: 2.5px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--rim);
+    transform: translateX(-50%) rotate(10deg);
+    transform-origin: bottom center;
+  }
+
+  .tile-knob {
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle at 34% 30%, #fff2d4, var(--rim));
+  }
+
+  .press-tile.lit .tile-lever {
+    background: var(--earned);
+  }
+
+  /* The wax seal: the painting's own face, dimmed or ringed by state. */
+  .seal-hit {
+    position: relative;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+  }
+
+  .seal-dim {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: rgba(10, 7, 4, 0.52);
+  }
+
+  .seal-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid;
+    box-shadow: 0 0 12px -2px currentColor;
   }
 
   /* A storey: a full band of wall, its floor plate, and its room badge. */
