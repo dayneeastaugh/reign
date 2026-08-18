@@ -31,6 +31,8 @@ export interface PlayfieldVariantDef {
    */
   wallLeft?: string;
   wallRight?: string;
+  /** Seamless bare-wall tile filling the storey behind everything else. */
+  wallTile?: string;
 }
 
 /** Decoration for the journey map. The layout is generated; the theme paints it. */

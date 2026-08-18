@@ -58,6 +58,7 @@ const art = (id: string) => `assets/clockwork-post/rooms/${id}.jpg`;
 const walls = (id: string) => ({
   wallLeft: `assets/clockwork-post/walls/${id}-left.jpg`,
   wallRight: `assets/clockwork-post/walls/${id}-right.jpg`,
+  wallTile: `assets/clockwork-post/walls/${id}-wall.jpg`,
 });
 
 const VARIANTS: PlayfieldVariantDef[] = [
@@ -178,7 +179,7 @@ const quest: TournamentDef = {
   schemaVersion: CONTENT_SCHEMA_VERSION,
   id: 'clockwork-post',
   name: 'The Clockwork Post',
-  version: 8,
+  version: 9,
   goal: 'Rebuild the letter scale',
   setup: {
     levelCount: LEVEL_COUNT,

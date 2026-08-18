@@ -138,6 +138,7 @@
         accent: string;
         wallLeft: string;
         wallRight: string;
+        wallTile: string;
         glyph: string;
         start: number;
         top: number;
@@ -181,6 +182,7 @@
         accent: variant?.queenColor ?? map.starColors[0],
         wallLeft: variant?.wallLeft ?? '',
         wallRight: variant?.wallRight ?? '',
+        wallTile: variant?.wallTile ?? '',
         glyph: variant?.queenGlyph ?? '',
         start: g.from + 1,
         top,
@@ -595,6 +597,9 @@
       <!-- The cutaway: a band of wall per storey, floor plates between them. -->
       {#each bands as b, k (b.id)}
         <div class="storey" style="left:{railW}px;top:{b.top}px;height:{b.height}px;background:{b.wall}">
+          {#if b.wallTile}
+            <span class="wall-tile" style="background-image:url({contentUrl(b.wallTile)})"></span>
+          {/if}
           <span class="storey-ceiling" style="background:linear-gradient({map.sky[0]}, transparent)"></span>
           {#if b.wallLeft}
             <span class="wall-art left" style="background-image:url({contentUrl(b.wallLeft)})"></span>
@@ -1510,6 +1515,19 @@
     position: absolute;
     right: 0;
     pointer-events: none;
+  }
+
+  /*
+   * Bare wall from the reference art, papered edge to edge under everything.
+   * The tile is a 2x2 mirror of a clean patch, so CSS repeat is seamless. It
+   * carries the middle of the storey — the side strips carry the furniture.
+   */
+  .wall-tile {
+    position: absolute;
+    inset: 0;
+    background-repeat: repeat;
+    background-size: 46px 46px;
+    opacity: 0.85;
   }
 
   .storey-ceiling {

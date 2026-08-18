@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "publishedAt": "2026-08-18T10:52:27.825Z",
+  "publishedAt": "2026-08-18T11:09:45.465Z",
   "quests": [
     {
       "id": "clockwork-post",
       "name": "The Clockwork Post",
-      "version": 8,
+      "version": 9,
       "goal": "Rebuild the letter scale",
       "levelCount": 30,
       "file": "quests/clockwork-post.json",
-      "bytes": 13161
+      "bytes": 13394
     },
     {
       "id": "grand-orbit",
