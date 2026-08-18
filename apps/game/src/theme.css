@@ -31,8 +31,10 @@
   --x-color: #4a443a;
   /* Marks sit on arbitrary region colours, where no flat colour clears 4.5:1.
      A halo in the opposing tone gives them contrast on any background. */
-  --x-halo: rgba(253, 250, 243, 0.95);
-  --x-outline: rgba(253, 250, 243, 0.9);
+  /* Transparent on paper: the halo and outline exist for the dark quest
+     boards, where they are overridden per variant. Ink on cream needs none. */
+  --x-halo: transparent;
+  --x-outline: transparent;
   /* Ink for the optional region patterns. Dark works across every palette,
      since region colours are all kept comfortably above mid lightness. */
   --pattern-ink: rgba(20, 16, 12, 0.22);
